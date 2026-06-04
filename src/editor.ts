@@ -5,6 +5,17 @@ import { fireEvent } from 'custom-card-helpers';
 import type { RoomLightsCardConfig, LightEntityConfig } from './types';
 import { normalizeLightConfig } from './const';
 
+// Subset of HA's HaFormSchema covering everything we use. The full
+// type lives in HA's frontend and isn't exported via custom-card-helpers.
+interface HaFormSchemaItem {
+  name: string;
+  type?: string;
+  schema?: HaFormSchemaItem[];
+  selector?: Record<string, unknown>;
+  context?: Record<string, unknown>;
+}
+type HaFormSchema = HaFormSchemaItem[];
+
 @customElement('room-lights-card-editor')
 export class RoomLightsCardEditor extends LitElement {
   @property({ attribute: false })
@@ -14,10 +25,6 @@ export class RoomLightsCardEditor extends LitElement {
   private _config?: RoomLightsCardConfig;
 
   setConfig(config: RoomLightsCardConfig): void {
-    // Tolerate partial/missing fields so the editor can render.
-    // `normalizeLightConfig` preserves the per-entity `name` and
-    // `icon` overrides (omits them when blank instead of writing
-    // empty strings, and trims whitespace).
     const entities = Array.isArray(config.entities) ? config.entities : [];
     this._config = {
       ...config,
@@ -26,225 +33,197 @@ export class RoomLightsCardEditor extends LitElement {
     };
   }
 
-  /** Normalise room_off: treat undefined OR empty string as "not set". */
   private get _roomOff(): string {
-    const v = this._config?.room_off;
-    return typeof v === 'string' ? v : '';
+    return typeof this._config?.room_off === 'string' ? this._config.room_off : '';
   }
 
   protected render(): TemplateResult {
-    if (!this._config) return html``;
+    if (!this._config || !this.hass) return html``;
     const cfg = this._config;
 
-    return html`
-      <div class="editor">
-        <div class="section">
-          <div class="section-title">Card</div>
-          <input
-            type="text"
-            class="card-name-field"
-            .value=${cfg.name}
-            placeholder="Card name"
-            autocomplete="off"
-            data-config-value="name"
-            @input=${this._valueChanged}
-          />
-          <ha-entity-picker
-            class="room-off-picker"
-            .hass=${this.hass}
-            .value=${this._roomOff}
-            .includeDomains=${['light', 'group', 'switch']}
-            allow-custom-entity
-            .label=${'Room off target (optional)'}
-            .helper=${'Header tap toggles this entity instead of the tiles. Use a HA light group (e.g. group.living_room_lights) to represent the whole room.'}
-            @value-changed=${this._roomOffChanged}
-          ></ha-entity-picker>
-        </div>
+    const rootSchema: HaFormSchema = [
+      { name: 'name', selector: { text: {} } },
+      {
+        name: 'room_off',
+        selector: { entity: { domain: ['light', 'group', 'switch'] } },
+      },
+    ];
 
-        <div class="section">
-          <div class="section-title">Lights</div>
-          ${cfg.entities.length === 0
-            ? html`<div class="empty">No lights configured yet.</div>`
-            : cfg.entities.map((e, i) => this._renderRow(e, i))}
-          <mwc-button
-            class="add-btn"
-            raised
-            @click=${this._addEntity}
-          >
-            <ha-icon icon="mdi:plus" slot="graphic"></ha-icon>
-            Add entity
-          </mwc-button>
-        </div>
+    return html`
+      <ha-form
+        .hass=${this.hass}
+        .data=${{ name: cfg.name, room_off: this._roomOff }}
+        .schema=${rootSchema}
+        .computeLabel=${this._computeRootLabel}
+        .computeHelper=${this._computeRootHelper}
+        @value-changed=${this._rootFormChanged}
+      ></ha-form>
+
+      <div class="entities-section">
+        <div class="section-title">Entities</div>
+        ${cfg.entities.map((e, i) => this._renderEntitySection(e, i))}
+        <mwc-button
+          class="add-btn"
+          raised
+          @click=${this._addEntity}
+        >
+          <ha-icon icon="mdi:plus" slot="graphic"></ha-icon>
+          Add entity
+        </mwc-button>
       </div>
     `;
   }
 
-  private _renderRow(e: LightEntityConfig, index: number): TemplateResult {
-    const hasEntity = typeof e.entity === 'string' && e.entity.length > 0;
+  private _renderEntitySection(
+    e: LightEntityConfig,
+    index: number,
+  ): TemplateResult {
+    // `type: "grid"` puts its child fields side-by-side. `name: ""` with
+    // the default `flatten` keeps the fields at the form-data root so
+    // we can read `entity`, `columns`, `name`, `icon` directly from
+    // `ev.detail.value` without nesting.
+    const entitySchema: HaFormSchema = [
+      {
+        type: 'grid',
+        name: '',
+        schema: [
+          {
+            name: 'entity',
+            selector: { entity: { domain: ['light', 'switch'] } },
+          },
+          {
+            name: 'columns',
+            selector: {
+              select: {
+                options: [
+                  { value: 1, label: 'Full' },
+                  { value: 2, label: 'Half' },
+                ],
+                mode: 'dropdown',
+              },
+            },
+          },
+        ],
+      },
+      {
+        type: 'grid',
+        name: '',
+        schema: [
+          { name: 'name', selector: { text: {} } },
+          {
+            name: 'icon',
+            selector: { icon: {} },
+            // Hint the icon picker with the selected entity's icon so
+            // the user starts from a sensible default.
+            context: { icon_entity: 'entity' },
+          },
+        ],
+      },
+    ];
+
     return html`
-      <div class="row">
-        <ha-entity-picker
-          class="entity-picker"
-          .hass=${this.hass}
-          .value=${e.entity}
-          .includeDomains=${['light', 'switch']}
-          allow-custom-entity
-          .label=${'Light / Switch'}
-          @value-changed=${(ev: Event) => this._entityChanged(index, ev)}
-        ></ha-entity-picker>
-        <div class="width-toggle" role="group" aria-label="Tile width">
-          <button
-            type="button"
-            class=${e.columns === 1 ? 'selected' : ''}
-            aria-pressed=${e.columns === 1 ? 'true' : 'false'}
-            @click=${(ev: Event) => this._columnsPicked(index, 1, ev)}
-          >
-            Full
-          </button>
-          <button
-            type="button"
-            class=${e.columns === 2 ? 'selected' : ''}
-            aria-pressed=${e.columns === 2 ? 'true' : 'false'}
-            @click=${(ev: Event) => this._columnsPicked(index, 2, ev)}
-          >
-            Half
-          </button>
-        </div>
-        <mwc-icon-button
+      <div class="entity-section">
+        <ha-icon-button
           class="remove-btn"
-          label="Remove"
+          .label=${'Remove entity'}
           @click=${() => this._removeEntity(index)}
         >
           <ha-icon icon="mdi:delete-outline"></ha-icon>
-        </mwc-icon-button>
+        </ha-icon-button>
+        <ha-form
+          .hass=${this.hass}
+          .data=${{
+            entity: e.entity,
+            columns: e.columns,
+            name: e.name ?? '',
+            icon: e.icon ?? '',
+          }}
+          .schema=${entitySchema}
+          .computeLabel=${this._computeEntityLabel}
+          @value-changed=${(ev: CustomEvent) => this._entityFormChanged(index, ev)}
+        ></ha-form>
       </div>
-      ${hasEntity
-        ? html`
-            <div class="row-overrides">
-              <input
-                type="text"
-                class="name-field"
-                .value=${e.name ?? ''}
-                placeholder="Display name (optional)"
-                autocomplete="off"
-                data-config-index=${index}
-                data-config-key="name"
-                @input=${this._overrideChanged}
-              />
-              <ha-icon-picker
-                class="icon-picker"
-                .hass=${this.hass}
-                .value=${e.icon ?? ''}
-                .label=${'Icon (optional)'}
-                .placeholder=${'Defaults to entity icon'}
-                data-config-index=${index}
-                data-config-key="icon"
-                @value-changed=${this._iconPicked}
-              ></ha-icon-picker>
-            </div>
-          `
-        : ''}
     `;
   }
 
-  private _valueChanged(ev: Event): void {
+  // ---------------------------------------------------------------------------
+  // Form change handlers
+  // ---------------------------------------------------------------------------
+
+  private _rootFormChanged(ev: CustomEvent): void {
     ev.stopPropagation();
     if (!this._config) return;
-    const target = ev.target as HTMLElement & { value?: string };
-    const key = target.dataset.configValue as keyof RoomLightsCardConfig | undefined;
-    if (!key) return;
-    const value = target.value ?? '';
+    const value = (
+      ev.detail as { value: { name?: string; room_off?: string } }
+    ).value;
     const newConfig: RoomLightsCardConfig = {
       ...this._config,
-      [key]: value,
+      name: value.name ?? '',
+      // Drop room_off entirely when the picker is cleared so the YAML
+      // doesn't carry a useless `room_off: ''` line.
+      room_off:
+        value.room_off && value.room_off.length > 0
+          ? value.room_off
+          : undefined,
     };
+    this._config = newConfig;
     fireEvent(this, 'config-changed', { config: newConfig });
   }
 
-  private _entityChanged(index: number, ev: Event): void {
+  private _entityFormChanged(index: number, ev: CustomEvent): void {
     ev.stopPropagation();
     if (!this._config) return;
-    const detail = (ev as CustomEvent<{ value: string }>).detail;
-    const value = detail?.value ?? '';
+    const value = (
+      ev.detail as {
+        value: {
+          entity: string;
+          columns: number | string;
+          name: string;
+          icon: string;
+        };
+      }
+    ).value;
+    const updated: LightEntityConfig = {
+      entity: value.entity,
+      columns: Number(value.columns) === 2 ? 2 : 1,
+    };
+    if (value.name && value.name.length > 0) updated.name = value.name;
+    if (value.icon && value.icon.length > 0) updated.icon = value.icon;
     const entities = [...this._config.entities];
-    entities[index] = { ...entities[index], entity: value };
-    // Clearing the entity also clears any stale custom name/icon
-    // overrides so a re-picked entity doesn't inherit them.
-    if (value.length === 0) {
-      entities[index] = { entity: '', columns: entities[index].columns };
-    }
+    entities[index] = updated;
     const newConfig: RoomLightsCardConfig = { ...this._config, entities };
+    this._config = newConfig;
     fireEvent(this, 'config-changed', { config: newConfig });
   }
 
-  private _overrideChanged = (ev: Event): void => {
-    ev.stopPropagation();
-    if (!this._config) return;
-    const target = ev.target as HTMLElement & {
-      value?: string;
-      dataset?: { configIndex?: string; configKey?: string };
-    };
-    const index = Number(target.dataset?.configIndex);
-    const key = target.dataset?.configKey as 'name' | 'icon' | undefined;
-    if (Number.isNaN(index) || !key) return;
-    // Prefer detail.value (works for ha-icon-picker value-changed and
-    // any custom-event source). Fall back to target.value for the
-    // ha-textfield @input event, which has no detail.
-    const detail = (ev as CustomEvent<{ value?: string }>).detail;
-    const raw = (
-      typeof detail?.value === 'string' ? detail.value : target.value ?? ''
-    ).trim();
-    const entities = [...this._config.entities];
-    const current = entities[index];
-    if (!current) return;
-    // Build the updated entity; drop the override entirely when blank
-    // so the YAML doesn't carry a useless `name: ''` line.
-    const next: LightEntityConfig = { ...current };
-    if (raw.length === 0) {
-      delete (next as Partial<LightEntityConfig>)[key];
-    } else {
-      (next as Partial<LightEntityConfig>)[key] = raw;
+  // ---------------------------------------------------------------------------
+  // Label / helper translations
+  // ---------------------------------------------------------------------------
+
+  private _computeRootLabel = (schema: HaFormSchemaItem): string => {
+    if (schema.name === 'name') return 'Card name';
+    if (schema.name === 'room_off') return 'Room off target (optional)';
+    return '';
+  };
+
+  private _computeRootHelper = (schema: HaFormSchemaItem): string => {
+    if (schema.name === 'room_off') {
+      return 'Header tap toggles this entity instead of the tiles. Use a HA light group (e.g. group.living_room_lights) to represent the whole room.';
     }
-    entities[index] = next;
-    this._config = { ...this._config, entities };
-    fireEvent(this, 'config-changed', { config: this._config });
+    return '';
   };
 
-  private _iconPicked = (ev: Event): void => {
-    // ha-icon-picker fires value-changed with detail.value (same
-    // shape as ha-entity-picker). Reuse the same write path.
-    this._overrideChanged(ev);
+  private _computeEntityLabel = (schema: HaFormSchemaItem): string => {
+    if (schema.name === 'entity') return 'Light / Switch';
+    if (schema.name === 'columns') return 'Tile width';
+    if (schema.name === 'name') return 'Display name (optional)';
+    if (schema.name === 'icon') return 'Icon (optional)';
+    return '';
   };
 
-  private _roomOffChanged = (ev: Event): void => {
-    ev.stopPropagation();
-    if (!this._config) return;
-    const detail = (ev as CustomEvent<{ value: string }>).detail;
-    const value = (detail?.value ?? '').trim();
-    // Drop the field entirely when the picker is cleared so the YAML
-    // doesn't carry a useless `room_off: ''` line.
-    const newConfig: RoomLightsCardConfig = {
-      ...this._config,
-      room_off: value.length > 0 ? value : undefined,
-    };
-    fireEvent(this, 'config-changed', { config: newConfig });
-  };
-
-  /**
-   * Direct handler for the Full/Half toggle buttons. Replaces the
-   * previous ha-select control which was unreliable across HA frontend
-   * versions (either the trigger rendered the value instead of the
-   * label, or value-changed didn't fire on click).
-   */
-  private _columnsPicked(index: number, columns: 1 | 2, ev: Event): void {
-    ev.stopPropagation();
-    if (!this._config) return;
-    if (this._config.entities[index]?.columns === columns) return;
-    const entities = [...this._config.entities];
-    entities[index] = { ...entities[index], columns };
-    const newConfig: RoomLightsCardConfig = { ...this._config, entities };
-    fireEvent(this, 'config-changed', { config: newConfig });
-  }
+  // ---------------------------------------------------------------------------
+  // Entity list management
+  // ---------------------------------------------------------------------------
 
   private _addEntity = (): void => {
     if (!this._config) return;
@@ -253,6 +232,7 @@ export class RoomLightsCardEditor extends LitElement {
       { entity: '', columns: 1 as 1 | 2 },
     ];
     const newConfig: RoomLightsCardConfig = { ...this._config, entities };
+    this._config = newConfig;
     fireEvent(this, 'config-changed', { config: newConfig });
   };
 
@@ -260,145 +240,40 @@ export class RoomLightsCardEditor extends LitElement {
     if (!this._config) return;
     const entities = this._config.entities.filter((_, i) => i !== index);
     const newConfig: RoomLightsCardConfig = { ...this._config, entities };
+    this._config = newConfig;
     fireEvent(this, 'config-changed', { config: newConfig });
   }
+
+  // ---------------------------------------------------------------------------
+  // Styles: only the section wrapper + trash button position. All
+  // input styling is delegated to <ha-form> for native theming.
+  // ---------------------------------------------------------------------------
 
   static styles = css`
     :host {
       display: block;
     }
-    .editor {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      padding: 12px 0;
-    }
-    .section {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--divider-color, rgba(0, 0, 0, 0.1));
-    }
-    .section:last-of-type {
-      border-bottom: none;
+    .entities-section {
+      margin-top: 16px;
     }
     .section-title {
       font-size: 14px;
       font-weight: 600;
       color: var(--primary-text-color);
-      margin-bottom: 4px;
+      margin: 16px 0 8px;
     }
-    .empty {
-      font-size: 13px;
-      color: var(--secondary-text-color);
-      padding: 8px 0;
-    }
-    .row {
-      display: grid;
-      grid-template-columns: 1fr 110px 40px;
-      gap: 8px;
-      align-items: center;
-    }
-    .row-overrides {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-top: 6px;
-    }
-    /* Native <input> styled to match the HA theme. We use native
-       inputs (not <ha-textfield>) because the ha-textfield custom
-       element does not render in some HA frontend versions (the host
-       element collapses to zero size with no visible content). Native
-       inputs are guaranteed to render and inherit HA CSS variables. */
-    .card-name-field,
-    .name-field {
-      flex: 1 1 0;
-      min-width: 0;
-      width: 100%;
-      height: 40px;
-      padding: 0 12px;
-      box-sizing: border-box;
-      border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.15));
-      border-radius: 4px;
-      background: var(
-        --secondary-background-color,
-        rgba(255, 255, 255, 0.05)
-      );
-      color: var(--primary-text-color);
-      font-family: inherit;
-      font-size: 14px;
-      line-height: 1.2;
-      outline: none;
-      transition: border-color 0.15s ease;
-      -webkit-appearance: none;
-      appearance: none;
-    }
-    .card-name-field:focus,
-    .name-field:focus {
-      border-color: var(--primary-color, #03a9f4);
-    }
-    .card-name-field::placeholder,
-    .name-field::placeholder {
-      color: var(--secondary-text-color, rgba(0, 0, 0, 0.45));
-      opacity: 1;
-    }
-    .icon-picker {
-      flex: 1 1 0;
-      min-width: 0;
-      width: 100%;
-    }
-    .entity-picker {
-      width: 100%;
-    }
-    .room-off-picker {
-      width: 100%;
-    }
-    .width-toggle {
-      display: flex;
-      width: 110px;
-      height: 40px;
-      background: var(
-        --secondary-background-color,
-        rgba(255, 255, 255, 0.05)
-      );
-      border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.1));
-      border-radius: 6px;
-      padding: 2px;
-      box-sizing: border-box;
-      overflow: hidden;
-    }
-    .width-toggle button {
-      flex: 1;
-      min-width: 0;
-      background: transparent;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      color: var(--primary-text-color);
-      font-size: 12px;
-      font-weight: 500;
-      padding: 0 6px;
-      font-family: inherit;
-      text-transform: none;
-      letter-spacing: 0;
-      transition:
-        background-color 0.15s ease,
-        color 0.15s ease;
-    }
-    .width-toggle button:hover:not(.selected) {
-      background: var(--divider-color, rgba(0, 0, 0, 0.06));
-    }
-    .width-toggle button.selected {
-      background: var(--primary-color, #03a9f4);
-      color: var(--text-primary-color, #fff);
-    }
-    .width-toggle button:focus-visible {
-      outline: 2px solid var(--primary-color);
-      outline-offset: 1px;
+    .entity-section {
+      position: relative;
+      border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+      border-radius: 8px;
+      padding: 12px 12px 4px;
+      margin-bottom: 12px;
     }
     .remove-btn {
-      --mdc-icon-button-size: 40px;
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      --mdc-icon-button-size: 36px;
       color: var(--error-color, #b71c1c);
     }
     .add-btn {

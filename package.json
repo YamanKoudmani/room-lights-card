@@ -1,6 +1,6 @@
 {
   "name": "room-lights-card",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "A custom Home Assistant Lovelace card for controlling all lights in a room with a single tappable card.",
   "keywords": [
     "home-assistant",
