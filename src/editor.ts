@@ -13,7 +13,13 @@ export class RoomLightsCardEditor extends LitElement {
   private _config?: RoomLightsCardConfig;
 
   setConfig(config: RoomLightsCardConfig): void {
-    // Tolerate partial/missing fields so the editor can render
+    // Tolerate partial/missing fields so the editor can render.
+    // CRITICAL: preserve name and icon overrides on each entity.
+    // The previous implementation stripped entities down to
+    // {entity, columns}, which meant every round-trip
+    // (config-changed -> parent -> setConfig) wiped the custom
+    // name and icon the user had just set. The card then never
+    // saw the override and the editor form went blank.
     const entities = Array.isArray(config.entities) ? config.entities : [];
     this._config = {
       ...config,
@@ -21,6 +27,12 @@ export class RoomLightsCardEditor extends LitElement {
       entities: entities.map((e) => ({
         entity: e?.entity ?? '',
         columns: e?.columns === 2 ? 2 : 1,
+        ...(typeof e?.name === 'string' && e.name.length > 0
+          ? { name: e.name }
+          : {}),
+        ...(typeof e?.icon === 'string' && e.icon.length > 0
+          ? { icon: e.icon }
+          : {}),
       })),
     };
   }
@@ -182,7 +194,13 @@ export class RoomLightsCardEditor extends LitElement {
     const index = Number(target.dataset?.configIndex);
     const key = target.dataset?.configKey as 'name' | 'icon' | undefined;
     if (Number.isNaN(index) || !key) return;
-    const raw = (target.value ?? '').trim();
+    // Prefer detail.value (works for ha-icon-picker value-changed and
+    // any custom-event source). Fall back to target.value for the
+    // ha-textfield @input event, which has no detail.
+    const detail = (ev as CustomEvent<{ value?: string }>).detail;
+    const raw = (
+      typeof detail?.value === 'string' ? detail.value : target.value ?? ''
+    ).trim();
     const entities = [...this._config.entities];
     const current = entities[index];
     if (!current) return;
@@ -195,13 +213,13 @@ export class RoomLightsCardEditor extends LitElement {
       (next as Partial<LightEntityConfig>)[key] = raw;
     }
     entities[index] = next;
-    const newConfig: RoomLightsCardConfig = { ...this._config, entities };
-    fireEvent(this, 'config-changed', { config: newConfig });
+    this._config = { ...this._config, entities };
+    fireEvent(this, 'config-changed', { config: this._config });
   };
 
   private _iconPicked = (ev: Event): void => {
-    // ha-icon-picker fires value-changed with detail.value, same shape
-    // as the entity picker. Reuse the same write path.
+    // ha-icon-picker fires value-changed with detail.value (same
+    // shape as ha-entity-picker). Reuse the same write path.
     this._overrideChanged(ev);
   };
 
@@ -290,23 +308,21 @@ export class RoomLightsCardEditor extends LitElement {
       align-items: center;
     }
     .row-overrides {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
       gap: 8px;
       align-items: center;
-      margin-top: 4px;
-      padding-left: 4px;
+      margin-top: 6px;
+    }
+    .name-field,
+    .icon-picker {
+      flex: 1 1 0;
+      min-width: 0;
+      width: 100%;
     }
     .entity-picker {
       width: 100%;
     }
     .room-off-picker {
-      width: 100%;
-    }
-    .name-field {
-      width: 100%;
-    }
-    .icon-picker {
       width: 100%;
     }
     .width-toggle {
