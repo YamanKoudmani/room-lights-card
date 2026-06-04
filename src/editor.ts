@@ -76,6 +76,7 @@ export class RoomLightsCardEditor extends LitElement {
   }
 
   private _renderRow(e: LightEntityConfig, index: number): TemplateResult {
+    const hasEntity = typeof e.entity === 'string' && e.entity.length > 0;
     return html`
       <div class="row">
         <ha-entity-picker
@@ -113,6 +114,31 @@ export class RoomLightsCardEditor extends LitElement {
           <ha-icon icon="mdi:delete-outline"></ha-icon>
         </mwc-icon-button>
       </div>
+      ${hasEntity
+        ? html`
+            <div class="row-overrides">
+              <ha-textfield
+                class="name-field"
+                .value=${e.name ?? ''}
+                .label=${'Display name (optional)'}
+                .placeholder=${'Defaults to entity friendly name'}
+                data-config-index=${index}
+                data-config-key="name"
+                @input=${this._overrideChanged}
+              ></ha-textfield>
+              <ha-icon-picker
+                class="icon-picker"
+                .hass=${this.hass}
+                .value=${e.icon ?? ''}
+                .label=${'Icon (optional)'}
+                .placeholder=${'Defaults to entity icon'}
+                data-config-index=${index}
+                data-config-key="icon"
+                @value-changed=${this._iconPicked}
+              ></ha-icon-picker>
+            </div>
+          `
+        : ''}
     `;
   }
 
@@ -137,9 +163,47 @@ export class RoomLightsCardEditor extends LitElement {
     const value = detail?.value ?? '';
     const entities = [...this._config.entities];
     entities[index] = { ...entities[index], entity: value };
+    // Clearing the entity also clears any stale custom name/icon
+    // overrides so a re-picked entity doesn't inherit them.
+    if (value.length === 0) {
+      entities[index] = { entity: '', columns: entities[index].columns };
+    }
     const newConfig: RoomLightsCardConfig = { ...this._config, entities };
     fireEvent(this, 'config-changed', { config: newConfig });
   }
+
+  private _overrideChanged = (ev: Event): void => {
+    ev.stopPropagation();
+    if (!this._config) return;
+    const target = ev.target as HTMLElement & {
+      value?: string;
+      dataset?: { configIndex?: string; configKey?: string };
+    };
+    const index = Number(target.dataset?.configIndex);
+    const key = target.dataset?.configKey as 'name' | 'icon' | undefined;
+    if (Number.isNaN(index) || !key) return;
+    const raw = (target.value ?? '').trim();
+    const entities = [...this._config.entities];
+    const current = entities[index];
+    if (!current) return;
+    // Build the updated entity; drop the override entirely when blank
+    // so the YAML doesn't carry a useless `name: ''` line.
+    const next: LightEntityConfig = { ...current };
+    if (raw.length === 0) {
+      delete (next as Partial<LightEntityConfig>)[key];
+    } else {
+      (next as Partial<LightEntityConfig>)[key] = raw;
+    }
+    entities[index] = next;
+    const newConfig: RoomLightsCardConfig = { ...this._config, entities };
+    fireEvent(this, 'config-changed', { config: newConfig });
+  };
+
+  private _iconPicked = (ev: Event): void => {
+    // ha-icon-picker fires value-changed with detail.value, same shape
+    // as the entity picker. Reuse the same write path.
+    this._overrideChanged(ev);
+  };
 
   private _roomOffChanged = (ev: Event): void => {
     ev.stopPropagation();
@@ -225,10 +289,24 @@ export class RoomLightsCardEditor extends LitElement {
       gap: 8px;
       align-items: center;
     }
+    .row-overrides {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      align-items: center;
+      margin-top: 4px;
+      padding-left: 4px;
+    }
     .entity-picker {
       width: 100%;
     }
     .room-off-picker {
+      width: 100%;
+    }
+    .name-field {
+      width: 100%;
+    }
+    .icon-picker {
       width: 100%;
     }
     .width-toggle {

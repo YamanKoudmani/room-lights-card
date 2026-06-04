@@ -29,7 +29,18 @@ export function normalizeLightConfig(input: unknown): LightEntityConfig {
     const obj = input as Record<string, unknown>;
     const entity = typeof obj.entity === 'string' ? obj.entity : '';
     const columns: 1 | 2 = obj.columns === 2 ? 2 : 1;
-    return { entity, columns };
+    const name =
+      typeof obj.name === 'string' && obj.name.trim().length > 0
+        ? obj.name.trim()
+        : undefined;
+    const icon =
+      typeof obj.icon === 'string' && obj.icon.trim().length > 0
+        ? obj.icon.trim()
+        : undefined;
+    const out: LightEntityConfig = { entity, columns };
+    if (name !== undefined) out.name = name;
+    if (icon !== undefined) out.icon = icon;
+    return out;
   }
   return { entity: '', columns: DEFAULT_COLUMNS };
 }

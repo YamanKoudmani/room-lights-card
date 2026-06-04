@@ -4,6 +4,7 @@ import {
   ICON_ANY_ON,
   ICON_OFF_ALL,
   DEFAULT_COLUMNS,
+  FALLBACK_TILE_ICON,
 } from './const';
 import type {
   LightEntityConfig,
@@ -59,16 +60,39 @@ export function resolveLightTile(
   config: LightEntityConfig,
 ): LightTileInfo {
   const stateObj = getStateObj(hass, config.entity);
+
+  // Name: custom override → friendly_name → entity_id → "Unknown".
+  // Trim the custom override so accidental whitespace from YAML or the
+  // editor doesn't render as a visible gap.
+  const customName =
+    typeof config.name === 'string' ? config.name.trim() : '';
   const friendly = stateObj?.attributes?.friendly_name;
-  const name =
-    typeof friendly === 'string' && friendly.length > 0
-      ? friendly
-      : config.entity || 'Unknown';
+  let name: string;
+  if (customName.length > 0) {
+    name = customName;
+  } else if (typeof friendly === 'string' && friendly.length > 0) {
+    name = friendly;
+  } else if (config.entity) {
+    name = config.entity;
+  } else {
+    name = 'Unknown';
+  }
+
+  // Icon: custom override → fallback. When a custom icon is set we do
+  // NOT use ha-state-icon (which would override it with the entity's
+  // state-driven icon). The caller uses the `icon` field to decide
+  // between ha-state-icon (no override) and ha-icon (with override).
+  const customIcon =
+    typeof config.icon === 'string' ? config.icon.trim() : '';
+  const icon =
+    customIcon.length > 0 ? customIcon : FALLBACK_TILE_ICON;
+
   const isOn = !!stateObj && stateObj.state === 'on';
   return {
     config,
     stateObj,
     name,
+    icon,
     status: statusText(stateObj),
     isOn,
     isUnavailable: isUnavailable(stateObj),

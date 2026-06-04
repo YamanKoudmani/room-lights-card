@@ -193,13 +193,18 @@ export class RoomLightsCard extends LitElement {
   }
 
   private _renderTile(tile: LightTileInfo): TemplateResult {
-    const { config, stateObj, name, status, isOn, isUnavailable } = tile;
+    const { config, stateObj, name, icon, status, isOn, isUnavailable } = tile;
     const stateClass = isUnavailable
       ? 'unavailable'
       : isOn
         ? 'on'
         : 'off';
     const sizeClass = config.columns === 2 ? 'tile-half' : 'tile-full';
+    // A custom icon means the user wants a fixed icon regardless of
+    // entity state. In that case we render <ha-icon> (not <ha-state-icon>)
+    // so the state-driven icon doesn't override the user's choice.
+    const hasCustomIcon =
+      typeof config.icon === 'string' && config.icon.length > 0;
 
     return html`
       <div
@@ -212,7 +217,12 @@ export class RoomLightsCard extends LitElement {
         @keydown=${this._onTileKey}
       >
         <div class="tile-icon-wrap">
-          ${this._renderTileIcon(stateObj, isOn, isUnavailable)}
+          ${this._renderTileIcon(
+            stateObj,
+            isOn,
+            isUnavailable,
+            hasCustomIcon ? icon : undefined,
+          )}
         </div>
         <div class="tile-text">
           <div class="tile-name">${name}</div>
@@ -226,6 +236,7 @@ export class RoomLightsCard extends LitElement {
     stateObj: HassEntity | null,
     isOn: boolean,
     isUnavailable: boolean,
+    fixedIcon?: string,
   ): TemplateResult {
     const stateClass = isUnavailable
       ? 'unavailable'
@@ -233,6 +244,14 @@ export class RoomLightsCard extends LitElement {
         ? 'on'
         : 'off';
 
+    if (fixedIcon) {
+      return html`
+        <ha-icon
+          class="tile-icon ${stateClass}"
+          icon=${fixedIcon}
+        ></ha-icon>
+      `;
+    }
     if (stateObj) {
       return html`
         <ha-state-icon
@@ -407,10 +426,13 @@ export class RoomLightsCard extends LitElement {
     }
     ha-card {
       border-radius: 12px;
-      /* top + sides only — bottom spacing is supplied by the tile's
-         own padding so the card hugs the last row of tiles instead
-         of leaving a band of empty card background. */
-      padding: 12px 16px 0;
+      /* Symmetric vertical padding so the last tile row has visual
+         breathing room from the card's bottom edge. Previously the
+         bottom was 0 and the tile's border-radius sat flush against
+         the ha-card's bottom edge, which looked cut off. The
+         getCardSize() formula (2 + rows) already leaves room for this
+         extra 12px inside the dashboard's grid cell. */
+      padding: 12px 16px;
       box-sizing: border-box;
       max-width: 100%;
       overflow: hidden;

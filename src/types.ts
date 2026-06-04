@@ -5,6 +5,13 @@ import type { LovelaceCardConfig } from 'custom-card-helpers';
 export interface LightEntityConfig {
   entity: string;
   columns: 1 | 2;
+  /** Optional display name override. Falls back to the entity's
+   *  friendly_name, then the entity_id, when unset. */
+  name?: string;
+  /** Optional MDI icon override (e.g. "mdi:lamp"). Falls back to
+   *  the entity's state-driven icon, then FALLBACK_TILE_ICON, when
+   *  unset. When set, the icon is FIXED regardless of on/off state. */
+  icon?: string;
 }
 
 /** Root card config */
@@ -27,6 +34,8 @@ export interface LightTileInfo {
   config: LightEntityConfig;
   stateObj: HassEntity | null;
   name: string;
+  /** Resolved icon to render. Always set (falls back to FALLBACK_TILE_ICON). */
+  icon: string;
   status: string;
   isOn: boolean;
   isUnavailable: boolean;

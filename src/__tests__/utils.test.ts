@@ -387,6 +387,74 @@ describe('resolveLightTile', () => {
     expect(t.status).toBe('100%');
     expect(t.name).toBe('Big Light');
   });
+
+  it('uses custom name override when provided', () => {
+    const hass = makeHass({
+      'light.a': light('off', { friendly_name: 'Couch Lamp' }),
+    });
+    const t = resolveLightTile(hass, {
+      entity: 'light.a',
+      columns: 1,
+      name: 'Reading Nook',
+    });
+    expect(t.name).toBe('Reading Nook');
+  });
+
+  it('trims whitespace around custom name', () => {
+    const hass = makeHass({
+      'light.a': light('off', { friendly_name: 'Couch Lamp' }),
+    });
+    const t = resolveLightTile(hass, {
+      entity: 'light.a',
+      columns: 1,
+      name: '  Spaced Out  ',
+    });
+    expect(t.name).toBe('Spaced Out');
+  });
+
+  it('falls back to friendly_name when custom name is empty string', () => {
+    const hass = makeHass({
+      'light.a': light('off', { friendly_name: 'Couch Lamp' }),
+    });
+    const t = resolveLightTile(hass, {
+      entity: 'light.a',
+      columns: 1,
+      name: '',
+    });
+    expect(t.name).toBe('Couch Lamp');
+  });
+
+  it('resolves custom icon when provided', () => {
+    const hass = makeHass({
+      'light.a': light('on', { friendly_name: 'Couch Lamp' }),
+    });
+    const t = resolveLightTile(hass, {
+      entity: 'light.a',
+      columns: 1,
+      icon: 'mdi:lamp',
+    });
+    expect(t.icon).toBe('mdi:lamp');
+  });
+
+  it('falls back to default icon when no custom icon', () => {
+    const hass = makeHass({
+      'light.a': light('on', { friendly_name: 'Couch Lamp' }),
+    });
+    const t = resolveLightTile(hass, { entity: 'light.a', columns: 1 });
+    expect(t.icon).toBe('mdi:lightbulb');
+  });
+
+  it('falls back to default icon when custom icon is empty string', () => {
+    const hass = makeHass({
+      'light.a': light('on', { friendly_name: 'Couch Lamp' }),
+    });
+    const t = resolveLightTile(hass, {
+      entity: 'light.a',
+      columns: 1,
+      icon: '',
+    });
+    expect(t.icon).toBe('mdi:lightbulb');
+  });
 });
 
 // ---------------------------------------------------------------------------

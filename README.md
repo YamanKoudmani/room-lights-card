@@ -38,10 +38,13 @@ After installation, pick "Room Lights Card" when adding a card. Give it a name a
 ```yaml
 type: custom:room-lights-card
 name: Living Room
+room_off: group.living_room_lights   # optional
 entities:
   - entity: light.chandelier
     columns: 1
   - entity: light.corner_lamp
+    name: Corner Lamp                 # optional, overrides friendly_name
+    icon: mdi:lamp                    # optional, fixed regardless of on/off
     columns: 2
   - entity: light.floor_lamp
     columns: 2
@@ -49,18 +52,21 @@ entities:
 
 ## Options
 
-| Name      | Type     | Required | Description                              |
-| --------- | -------- | -------- | ---------------------------------------- |
-| `type`    | string   | yes      | `custom:room-lights-card`                |
-| `name`    | string   | yes      | Display name shown in the card header.   |
-| `entities`| array    | yes      | List of light entities to control.       |
+| Name       | Type   | Required | Description                                                                          |
+| ---------- | ------ | -------- | ------------------------------------------------------------------------------------ |
+| `type`     | string | yes      | `custom:room-lights-card`                                                            |
+| `name`     | string | yes      | Display name shown in the card header.                                               |
+| `entities` | array  | yes      | List of light/switch entities to control. See [Entity options](#entity-options).     |
+| `room_off` | string | no       | Master target for the header tap. When set, tapping the header toggles THIS entity (a `light.*`, `group.*`, or `switch.*`) instead of every tile at once. Tile entities remain individually toggleable. Useful with a HA light group (e.g. `group.living_room_lights`) so the header represents the whole room while the tiles show a curated subset. |
 
 ## Entity options
 
-| Key       | Type             | Default | Description                                  |
-| --------- | ---------------- | ------- | -------------------------------------------- |
-| `entity`  | string           | —       | A `light.*` entity id.                       |
-| `columns` | `1` \| `2`       | `1`     | `1` = full-width, `2` = half-width.          |
+| Key       | Type       | Default        | Description                                                                                                                |
+| --------- | ---------- | -------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `entity`  | string     | —              | A `light.*` or `switch.*` entity id.                                                                                       |
+| `columns` | `1` \| `2` | `1`            | `1` = full-width, `2` = half-width.                                                                                        |
+| `name`    | string     | friendly_name  | Optional display name override. When set, used as the tile label instead of the entity's `friendly_name` (or entity_id). |
+| `icon`    | string     | entity's icon  | Optional MDI icon override (e.g. `mdi:lamp`). When set, the icon is fixed regardless of on/off state. When unset, the icon tracks the entity's state. |
 
 ## Behavior
 
