@@ -123,13 +123,6 @@ export class RoomLightsCardEditor extends LitElement {
 
     return html`
       <div class="entity-section">
-        <ha-icon-button
-          class="remove-btn"
-          .label=${'Remove entity'}
-          @click=${() => this._removeEntity(index)}
-        >
-          <ha-icon icon="mdi:delete-outline"></ha-icon>
-        </ha-icon-button>
         <ha-form
           .hass=${this.hass}
           .data=${{
@@ -142,6 +135,15 @@ export class RoomLightsCardEditor extends LitElement {
           .computeLabel=${this._computeEntityLabel}
           @value-changed=${(ev: CustomEvent) => this._entityFormChanged(index, ev)}
         ></ha-form>
+        <div class="entity-actions">
+          <ha-icon-button
+            class="remove-btn"
+            .label=${'Remove entity'}
+            @click=${() => this._removeEntity(index)}
+          >
+            <ha-icon icon="mdi:delete-outline"></ha-icon>
+          </ha-icon-button>
+        </div>
       </div>
     `;
   }
@@ -263,16 +265,19 @@ export class RoomLightsCardEditor extends LitElement {
       margin: 16px 0 8px;
     }
     .entity-section {
-      position: relative;
       border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
       border-radius: 8px;
-      padding: 12px 12px 4px;
+      padding: 12px;
       margin-bottom: 12px;
     }
+    .entity-actions {
+      display: flex;
+      justify-content: flex-end;
+      border-top: 1px solid var(--divider-color, rgba(0, 0, 0, 0.08));
+      margin-top: 8px;
+      padding-top: 4px;
+    }
     .remove-btn {
-      position: absolute;
-      top: 4px;
-      right: 4px;
       --mdc-icon-button-size: 36px;
       color: var(--error-color, #b71c1c);
     }
