@@ -60,11 +60,13 @@ export class RoomLightsCard extends LitElement {
   }
 
   getCardSize(): number {
-    // 1 row for the header (icon + 2 text lines, ~56px) + 1 row per
-    // computed tile row. The previous `2 + rows * 2` over-reserved
-    // about 2 dashboard rows, which left a visible empty band at
-    // the bottom of the card.
-    return 1 + this._computeRows();
+    // 2 rows for the header section (12px padding + ~46px header +
+    // 14px grid margin) + 1 row per computed tile row. `1 + rows`
+    // was 4-8px too short and caused the card to overflow the
+    // dashboard's grid cell; the original `2 + rows * 2` left a
+    // ~2-row empty band. `2 + rows` is the minimum that keeps
+    // every tile fully inside the allocated space.
+    return 2 + this._computeRows();
   }
 
   getGridOptions(): {
@@ -76,8 +78,8 @@ export class RoomLightsCard extends LitElement {
     max_columns: number;
   } {
     return {
-      rows: this._computeRows(),
-      min_rows: 1,
+      rows: 2 + this._computeRows(),
+      min_rows: 3,
       max_rows: 8,
       columns: 12,
       min_columns: 6,

@@ -65,9 +65,11 @@ export class RoomLightsCardEditor extends LitElement {
           <mwc-button
             class="add-btn"
             raised
-            label="Add light"
             @click=${this._addEntity}
-          ></mwc-button>
+          >
+            <ha-icon icon="mdi:plus" slot="graphic"></ha-icon>
+            Add entity
+          </mwc-button>
         </div>
       </div>
     `;
@@ -152,20 +154,6 @@ export class RoomLightsCardEditor extends LitElement {
     };
     fireEvent(this, 'config-changed', { config: newConfig });
   };
-
-  private _columnsChanged(
-    index: number,
-    ev: CustomEvent<{ value: string | number | undefined }>,
-  ): void {
-    ev.stopPropagation();
-    if (!this._config) return;
-    const raw = ev.detail?.value;
-    const columns: 1 | 2 = String(raw) === '2' ? 2 : 1;
-    const entities = [...this._config.entities];
-    entities[index] = { ...entities[index], columns };
-    const newConfig: RoomLightsCardConfig = { ...this._config, entities };
-    fireEvent(this, 'config-changed', { config: newConfig });
-  }
 
   /**
    * Direct handler for the Full/Half toggle buttons. Replaces the
