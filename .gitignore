@@ -5,3 +5,6 @@ dist/
 .idea/
 .vscode/
 *.log
+
+# Local release scripts contain hardcoded tokens — never commit
+scripts/

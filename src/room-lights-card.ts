@@ -55,8 +55,6 @@ export class RoomLightsCard extends LitElement {
         { entity: 'light.example_1', columns: 1 },
         { entity: 'light.example_2', columns: 2 },
         { entity: 'light.example_3', columns: 2 },
-        { entity: 'light.example_4', columns: 2 },
-        { entity: 'light.example_5', columns: 2 },
       ],
     };
   }
@@ -78,8 +76,8 @@ export class RoomLightsCard extends LitElement {
       rows: this._computeRows(),
       min_rows: 1,
       max_rows: 8,
-      columns: 6,
-      min_columns: 1,
+      columns: 12,
+      min_columns: 6,
       max_columns: 12,
     };
   }
@@ -322,14 +320,28 @@ export class RoomLightsCard extends LitElement {
 
   private _toggleLight(entityId: string): void {
     if (!this.hass) return;
-    this.hass.callService('light', 'toggle', { entity_id: entityId });
+    const domain = entityId.split('.')[0];
+    if (domain !== 'light' && domain !== 'switch') return;
+    this.hass.callService(domain, 'toggle', { entity_id: entityId });
   }
 
   private _toggleAll(): void {
     if (!this.hass || !this._config) return;
     const ids = this._config.entities.map((e) => e.entity).filter(Boolean);
     if (ids.length === 0) return;
-    this.hass.callService('light', 'toggle', { entity_id: ids });
+    // Group by domain so mixed light+switch configs work — HA's service
+    // calls only accept a single domain per call.
+    const byDomain = new Map<string, string[]>();
+    for (const id of ids) {
+      const domain = id.split('.')[0];
+      if (domain !== 'light' && domain !== 'switch') continue;
+      const list = byDomain.get(domain);
+      if (list) list.push(id);
+      else byDomain.set(domain, [id]);
+    }
+    for (const [domain, list] of byDomain) {
+      this.hass.callService(domain, 'toggle', { entity_id: list });
+    }
   }
 
   private _openMoreInfo(entityId: string): void {
@@ -367,6 +379,8 @@ export class RoomLightsCard extends LitElement {
       border-radius: 12px;
       padding: 16px;
       box-sizing: border-box;
+      max-width: 100%;
+      overflow: hidden;
       background: var(
         --ha-card-background,
         var(

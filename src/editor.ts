@@ -64,20 +64,27 @@ export class RoomLightsCardEditor extends LitElement {
           class="entity-picker"
           .hass=${this.hass}
           .value=${e.entity}
-          .includeDomains=${['light']}
+          .includeDomains=${['light', 'switch']}
           allow-custom-entity
-          .label=${'Light'}
+          .label=${'Light / Switch'}
           @value-changed=${(ev: Event) => this._entityChanged(index, ev)}
         ></ha-entity-picker>
         <ha-select
           class="columns-select"
-          .value=${String(e.columns ?? 1)}
           .label=${'Width'}
-          @selected=${(ev: Event) => this._columnsChanged(index, ev)}
-          @value-changed=${(ev: Event) => this._columnsChanged(index, ev)}
+          @value-changed=${(ev: CustomEvent<{ value: string }>) =>
+            this._columnsChanged(index, ev)}
         >
-          <mwc-list-item value="1">Full</mwc-list-item>
-          <mwc-list-item value="2">Half</mwc-list-item>
+          <mwc-list-item
+            value="1"
+            ?selected=${e.columns !== 2}
+            >Full</mwc-list-item
+          >
+          <mwc-list-item
+            value="2"
+            ?selected=${e.columns === 2}
+            >Half</mwc-list-item
+          >
         </ha-select>
         <mwc-icon-button
           class="remove-btn"
@@ -115,11 +122,13 @@ export class RoomLightsCardEditor extends LitElement {
     fireEvent(this, 'config-changed', { config: newConfig });
   }
 
-  private _columnsChanged(index: number, ev: Event): void {
+  private _columnsChanged(
+    index: number,
+    ev: CustomEvent<{ value: string }>,
+  ): void {
     ev.stopPropagation();
     if (!this._config) return;
-    const target = ev.target as HTMLElement & { value?: string };
-    const raw = target.value ?? '1';
+    const raw = ev.detail?.value ?? '1';
     const columns: 1 | 2 = raw === '2' ? 2 : 1;
     const entities = [...this._config.entities];
     entities[index] = { ...entities[index], columns };
