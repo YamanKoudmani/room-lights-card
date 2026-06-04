@@ -25,6 +25,12 @@ export class RoomLightsCardEditor extends LitElement {
     };
   }
 
+  /** Normalise room_off: treat undefined OR empty string as "not set". */
+  private get _roomOff(): string {
+    const v = this._config?.room_off;
+    return typeof v === 'string' ? v : '';
+  }
+
   protected render(): TemplateResult {
     if (!this._config) return html``;
     const cfg = this._config;
@@ -39,6 +45,16 @@ export class RoomLightsCardEditor extends LitElement {
             data-config-value="name"
             @input=${this._valueChanged}
           ></ha-textfield>
+          <ha-entity-picker
+            class="room-off-picker"
+            .hass=${this.hass}
+            .value=${this._roomOff}
+            .includeDomains=${['light', 'group', 'switch']}
+            allow-custom-entity
+            .label=${'Room off target (optional)'}
+            .helper=${'Header tap toggles this entity instead of the tiles. Use a HA light group (e.g. group.living_room_lights) to represent the whole room.'}
+            @value-changed=${this._roomOffChanged}
+          ></ha-entity-picker>
         </div>
 
         <div class="section">
@@ -122,6 +138,20 @@ export class RoomLightsCardEditor extends LitElement {
     fireEvent(this, 'config-changed', { config: newConfig });
   }
 
+  private _roomOffChanged = (ev: Event): void => {
+    ev.stopPropagation();
+    if (!this._config) return;
+    const detail = (ev as CustomEvent<{ value: string }>).detail;
+    const value = (detail?.value ?? '').trim();
+    // Drop the field entirely when the picker is cleared so the YAML
+    // doesn't carry a useless `room_off: ''` line.
+    const newConfig: RoomLightsCardConfig = {
+      ...this._config,
+      room_off: value.length > 0 ? value : undefined,
+    };
+    fireEvent(this, 'config-changed', { config: newConfig });
+  };
+
   private _columnsChanged(
     index: number,
     ev: CustomEvent<{ value: string }>,
@@ -191,6 +221,9 @@ export class RoomLightsCardEditor extends LitElement {
       align-items: center;
     }
     .entity-picker {
+      width: 100%;
+    }
+    .room-off-picker {
       width: 100%;
     }
     .columns-select {

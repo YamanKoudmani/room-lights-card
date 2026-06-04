@@ -237,6 +237,67 @@ describe('aggregateRoomState', () => {
 });
 
 // ---------------------------------------------------------------------------
+// aggregateRoomState with room_off (header-as-source-of-truth mode)
+// ---------------------------------------------------------------------------
+
+describe('aggregateRoomState with room_off', () => {
+  it('uses room_off state when set (on)', () => {
+    const hass = makeHass({
+      'group.living_room_lights': light('on'),
+      // Tile entities are off — must be ignored when room_off is set.
+      'light.a': light('off'),
+      'light.b': light('off'),
+    });
+    expect(
+      aggregateRoomState(
+        hass,
+        [
+          { entity: 'light.a', columns: 1 },
+          { entity: 'light.b', columns: 1 },
+        ],
+        'group.living_room_lights',
+      ),
+    ).toEqual({ anyOn: true, allOn: true, onCount: 1, total: 1 });
+  });
+
+  it('uses room_off state when set (off)', () => {
+    const hass = makeHass({
+      'group.living_room_lights': light('off'),
+      'light.a': light('on'),
+    });
+    expect(
+      aggregateRoomState(
+        hass,
+        [{ entity: 'light.a', columns: 1 }],
+        'group.living_room_lights',
+      ),
+    ).toEqual({ anyOn: false, allOn: false, onCount: 0, total: 1 });
+  });
+
+  it('returns all-off when room_off entity is missing from hass', () => {
+    const hass = makeHass({});
+    expect(
+      aggregateRoomState(
+        hass,
+        [{ entity: 'light.a', columns: 1 }],
+        'group.missing',
+      ),
+    ).toEqual({ anyOn: false, allOn: false, onCount: 0, total: 0 });
+  });
+
+  it('falls back to tile aggregation when room_off is undefined', () => {
+    const hass = makeHass({ 'light.a': light('on') });
+    expect(
+      aggregateRoomState(
+        hass,
+        [{ entity: 'light.a', columns: 1 }],
+        undefined,
+      ),
+    ).toEqual({ anyOn: true, allOn: true, onCount: 1, total: 1 });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // headerStatusText
 // ---------------------------------------------------------------------------
 

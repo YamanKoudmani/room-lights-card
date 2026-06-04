@@ -12,6 +12,14 @@ export interface RoomLightsCardConfig extends LovelaceCardConfig {
   type: string;
   name: string;
   entities: LightEntityConfig[];
+  /**
+   * Optional master target for the header tap. When set, the header toggles
+   * THIS entity (a light, group, or switch) instead of the tile entities.
+   * Tile entities remain individually toggleable. Use this to bind the card
+   * to a HA light group (e.g. `group.living_room_lights`) so the header
+   * represents the whole room while the tiles show a curated subset.
+   */
+  room_off?: string;
 }
 
 /** Resolved per-tile info for rendering */

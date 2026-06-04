@@ -111,10 +111,17 @@ export class RoomLightsCard extends LitElement {
       throw new Error('No valid light entities found in `entities`');
     }
 
+    // Normalise room_off: empty string → undefined so a cleared editor
+    // picker removes the field rather than passing an invalid entity_id.
+    const rawRoomOff =
+      typeof config.room_off === 'string' ? config.room_off.trim() : '';
+    const roomOff = rawRoomOff.length > 0 ? rawRoomOff : undefined;
+
     this._config = {
       ...config,
       type: config.type ?? 'custom:room-lights-card',
       entities,
+      room_off: roomOff,
     };
   }
 
@@ -140,7 +147,11 @@ export class RoomLightsCard extends LitElement {
     const tiles: LightTileInfo[] = cfg.entities.map((e) =>
       resolveLightTile(this.hass, e),
     );
-    const aggregate: RoomState = aggregateRoomState(this.hass, cfg.entities);
+    const aggregate: RoomState = aggregateRoomState(
+      this.hass,
+      cfg.entities,
+      cfg.room_off,
+    );
     const anyOn = aggregate.anyOn;
     const headerIcon = headerIconFor(aggregate);
     const headerStatus = headerStatusText(aggregate);
@@ -153,7 +164,9 @@ export class RoomLightsCard extends LitElement {
             data-header
             role="button"
             tabindex="0"
-            aria-label="Toggle all lights in ${cfg.name}"
+            aria-label=${cfg.room_off
+              ? `Toggle ${cfg.room_off}`
+              : `Toggle all lights in ${cfg.name}`}
             @keydown=${this._onHeaderKey}
           >
             <ha-icon
@@ -327,6 +340,18 @@ export class RoomLightsCard extends LitElement {
 
   private _toggleAll(): void {
     if (!this.hass || !this._config) return;
+    // When `room_off` is configured, the header represents that single
+    // target — it's the source of truth for "the room". Tapping toggles
+    // only that entity, never the tile set. (Tiles stay independently
+    // toggleable.) This avoids double-toggling when room_off is a
+    // `group.*` that contains the tile entities.
+    if (this._config.room_off) {
+      const id = this._config.room_off;
+      const domain = id.split('.')[0];
+      if (domain !== 'light' && domain !== 'switch') return;
+      this.hass.callService(domain, 'toggle', { entity_id: id });
+      return;
+    }
     const ids = this._config.entities.map((e) => e.entity).filter(Boolean);
     if (ids.length === 0) return;
     // Group by domain so mixed light+switch configs work — HA's service

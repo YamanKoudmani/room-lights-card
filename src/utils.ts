@@ -75,11 +75,22 @@ export function resolveLightTile(
   };
 }
 
-/** Aggregate state across all configured lights. */
+/** Aggregate state across all configured lights, or across a single
+ *  `room_off` target when one is configured. The latter is the "header
+ *  is the source of truth for the whole room" model. */
 export function aggregateRoomState(
   hass: HomeAssistant | undefined,
   entities: LightEntityConfig[],
+  roomOff?: string,
 ): RoomState {
+  if (roomOff) {
+    const stateObj = getStateObj(hass, roomOff);
+    if (!stateObj) {
+      return { anyOn: false, allOn: false, onCount: 0, total: 0 };
+    }
+    const isOn = stateObj.state === 'on';
+    return { anyOn: isOn, allOn: isOn, onCount: isOn ? 1 : 0, total: 1 };
+  }
   const total = entities.length;
   let onCount = 0;
   for (const e of entities) {
