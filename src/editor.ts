@@ -82,6 +82,12 @@ export class RoomLightsCardEditor extends LitElement {
     // the default `flatten` keeps the fields at the form-data root so
     // we can read `entity`, `columns`, `name`, `icon` directly from
     // `ev.detail.value` without nesting.
+    //
+    // Note: the entity selector is naturally taller than the columns
+    // dropdown because it stacks icon + name + area vertically. Both
+    // fields end up on the same grid row, but the row's height follows
+    // the taller sibling. This is HA's own entity-picker design, not
+    // a bug we can fix from outside the shadow DOM.
     const entitySchema: HaFormSchema = [
       {
         type: 'grid',
@@ -121,6 +127,8 @@ export class RoomLightsCardEditor extends LitElement {
       },
     ];
 
+    const total = this._config?.entities.length ?? 0;
+
     return html`
       <div class="entity-section">
         <ha-form
@@ -136,6 +144,20 @@ export class RoomLightsCardEditor extends LitElement {
           @value-changed=${(ev: CustomEvent) => this._entityFormChanged(index, ev)}
         ></ha-form>
         <div class="entity-actions">
+          <ha-icon-button
+            .label=${'Move up'}
+            .disabled=${index === 0}
+            @click=${() => this._moveEntity(index, -1)}
+          >
+            <ha-icon icon="mdi:arrow-up"></ha-icon>
+          </ha-icon-button>
+          <ha-icon-button
+            .label=${'Move down'}
+            .disabled=${index === total - 1}
+            @click=${() => this._moveEntity(index, 1)}
+          >
+            <ha-icon icon="mdi:arrow-down"></ha-icon>
+          </ha-icon-button>
           <ha-icon-button
             class="remove-btn"
             .label=${'Remove entity'}
@@ -246,6 +268,20 @@ export class RoomLightsCardEditor extends LitElement {
     fireEvent(this, 'config-changed', { config: newConfig });
   }
 
+  private _moveEntity(index: number, direction: -1 | 1): void {
+    if (!this._config) return;
+    const target = index + direction;
+    const entities = this._config.entities;
+    if (target < 0 || target >= entities.length) return;
+    // Copy before swapping so we never mutate the previous config
+    // object (which would confuse the diff + undo in the HA editor).
+    const next = [...entities];
+    [next[index], next[target]] = [next[target], next[index]];
+    const newConfig: RoomLightsCardConfig = { ...this._config, entities: next };
+    this._config = newConfig;
+    fireEvent(this, 'config-changed', { config: newConfig });
+  }
+
   // ---------------------------------------------------------------------------
   // Styles: only the section wrapper + trash button position. All
   // input styling is delegated to <ha-form> for native theming.
@@ -277,8 +313,11 @@ export class RoomLightsCardEditor extends LitElement {
       margin-top: 8px;
       padding-top: 4px;
     }
-    .remove-btn {
+    .entity-actions ha-icon-button {
       --mdc-icon-button-size: 36px;
+      color: var(--secondary-text-color);
+    }
+    .remove-btn {
       color: var(--error-color, #b71c1c);
     }
     .add-btn {
