@@ -61,13 +61,13 @@ export class RoomLightsCard extends LitElement {
   }
 
   getCardSize(): number {
-    // 2 rows for the header section (12px padding + ~46px header +
-    // 14px grid margin) + 1 row per computed tile row. `1 + rows`
-    // was 4-8px too short and caused the card to overflow the
-    // dashboard's grid cell; the original `2 + rows * 2` left a
-    // ~2-row empty band. `2 + rows` is the minimum that keeps
-    // every tile fully inside the allocated space.
-    return 2 + this._computeRows();
+    // HA's grid row is ~56-60px in the modern sections view. Empirically
+    // the previous `2 + rows` over-allocated by ~80px (≈2 rows) for a
+    // 3-row card — the edit-mode bounding box showed a visible empty
+    // band below the last tile. `1 + rows` lands within ~20px of the
+    // actual content height, which is the closest we can get without
+    // pixel-perfect measurement (HA's row height varies by view/theme).
+    return 1 + this._computeRows();
   }
 
   getGridOptions(): {
@@ -79,8 +79,10 @@ export class RoomLightsCard extends LitElement {
     max_columns: number;
   } {
     return {
-      rows: 2 + this._computeRows(),
-      min_rows: 3,
+      rows: 1 + this._computeRows(),
+      // Lowered from 3 so a 1- or 2-row card doesn't get the previous
+      // formula's `2 + rows` floor pushed up to 3 rows of empty space.
+      min_rows: 2,
       max_rows: 8,
       columns: 12,
       min_columns: 6,
@@ -613,11 +615,13 @@ export class RoomLightsCard extends LitElement {
     ha-card.compact .tile {
       padding: 10px 12px;
       border-radius: 6px;
-      /* Keep the border in the layout (so the on-state accent ring still
-         works) but make it transparent so flush tiles don't show a
-         double-border seam. The .tile.on rule below restores the accent
-         color on the active tile. */
-      border-color: transparent;
+      /* Faint outline defines the tap target between flush tiles. The
+         border stays in the layout (so the on-state accent ring below
+         still works) but uses a low-alpha divider color so the
+         double-border seam where two tiles meet is subtle, not loud.
+         The .tile.on rule below restores the accent color on the
+         active tile. */
+      border-color: var(--divider-color, rgba(0, 0, 0, 0.12));
     }
     ha-card.compact .tile.on {
       border-color: var(--accent-on, var(--_room-lights-accent, #f5c842));
