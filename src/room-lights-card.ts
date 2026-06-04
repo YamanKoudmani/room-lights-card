@@ -159,7 +159,7 @@ export class RoomLightsCard extends LitElement {
     const headerStatus = headerStatusText(aggregate);
 
     return html`
-      <ha-card>
+      <ha-card class=${cfg.compact ? 'compact' : ''}>
         <div class="card-inner">
           <div
             class="header"
@@ -593,6 +593,34 @@ export class RoomLightsCard extends LitElement {
     }
     .tile.unavailable .tile-status {
       color: var(--disabled-text-color, #9e9e9e);
+    }
+
+    /* Compact mode --------------------------------------------------------- */
+    /* Removes the gap between tiles, tightens outer/inner padding, and
+       makes tile borders transparent so flush-adjacent tiles don't show
+       a double border. Tiles separate by background-color contrast only. */
+    ha-card.compact {
+      padding: 8px 10px;
+      border-radius: 8px;
+    }
+    ha-card.compact .header {
+      padding: 4px 4px;
+    }
+    ha-card.compact .grid {
+      gap: 0;
+      margin-top: 8px;
+    }
+    ha-card.compact .tile {
+      padding: 10px 12px;
+      border-radius: 6px;
+      /* Keep the border in the layout (so the on-state accent ring still
+         works) but make it transparent so flush tiles don't show a
+         double-border seam. The .tile.on rule below restores the accent
+         color on the active tile. */
+      border-color: transparent;
+    }
+    ha-card.compact .tile.on {
+      border-color: var(--accent-on, var(--_room-lights-accent, #f5c842));
     }
   `;
 }

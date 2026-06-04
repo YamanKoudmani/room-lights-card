@@ -27,6 +27,13 @@ export interface RoomLightsCardConfig extends LovelaceCardConfig {
    * represents the whole room while the tiles show a curated subset.
    */
   room_off?: string;
+  /**
+   * Compact layout: removes the gap between tiles, tightens inner padding,
+   * and makes tile borders transparent so flush-adjacent tiles don't show
+   * a double border. Useful when you have many entities and want to fit
+   * more in the same vertical space.
+   */
+  compact?: boolean;
 }
 
 /** Resolved per-tile info for rendering */

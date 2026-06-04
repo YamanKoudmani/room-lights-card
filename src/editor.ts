@@ -47,12 +47,17 @@ export class RoomLightsCardEditor extends LitElement {
         name: 'room_off',
         selector: { entity: { domain: ['light', 'group', 'switch'] } },
       },
+      { name: 'compact', selector: { boolean: {} } },
     ];
 
     return html`
       <ha-form
         .hass=${this.hass}
-        .data=${{ name: cfg.name, room_off: this._roomOff }}
+        .data=${{
+          name: cfg.name,
+          room_off: this._roomOff,
+          compact: cfg.compact === true,
+        }}
         .schema=${rootSchema}
         .computeLabel=${this._computeRootLabel}
         .computeHelper=${this._computeRootHelper}
@@ -178,7 +183,9 @@ export class RoomLightsCardEditor extends LitElement {
     ev.stopPropagation();
     if (!this._config) return;
     const value = (
-      ev.detail as { value: { name?: string; room_off?: string } }
+      ev.detail as {
+        value: { name?: string; room_off?: string; compact?: boolean };
+      }
     ).value;
     const newConfig: RoomLightsCardConfig = {
       ...this._config,
@@ -189,6 +196,9 @@ export class RoomLightsCardEditor extends LitElement {
         value.room_off && value.room_off.length > 0
           ? value.room_off
           : undefined,
+      // Drop compact entirely when off so the YAML stays clean and
+      // `compact: false` doesn't appear on every config.
+      compact: value.compact === true ? true : undefined,
     };
     this._config = newConfig;
     fireEvent(this, 'config-changed', { config: newConfig });
@@ -227,12 +237,16 @@ export class RoomLightsCardEditor extends LitElement {
   private _computeRootLabel = (schema: HaFormSchemaItem): string => {
     if (schema.name === 'name') return 'Card name';
     if (schema.name === 'room_off') return 'Room off target (optional)';
+    if (schema.name === 'compact') return 'Compact mode';
     return '';
   };
 
   private _computeRootHelper = (schema: HaFormSchemaItem): string => {
     if (schema.name === 'room_off') {
       return 'Header tap toggles this entity instead of the tiles. Use a HA light group (e.g. group.living_room_lights) to represent the whole room.';
+    }
+    if (schema.name === 'compact') {
+      return 'Removes the gap between tiles and tightens padding. Useful when you have many entities and want a denser layout.';
     }
     return '';
   };
