@@ -60,8 +60,11 @@ export class RoomLightsCard extends LitElement {
   }
 
   getCardSize(): number {
-    const rows = this._computeRows();
-    return 2 + rows * 2;
+    // 1 row for the header (icon + 2 text lines, ~56px) + 1 row per
+    // computed tile row. The previous `2 + rows * 2` over-reserved
+    // about 2 dashboard rows, which left a visible empty band at
+    // the bottom of the card.
+    return 1 + this._computeRows();
   }
 
   getGridOptions(): {
@@ -402,7 +405,10 @@ export class RoomLightsCard extends LitElement {
     }
     ha-card {
       border-radius: 12px;
-      padding: 16px;
+      /* top + sides only — bottom spacing is supplied by the tile's
+         own padding so the card hugs the last row of tiles instead
+         of leaving a band of empty card background. */
+      padding: 12px 16px 0;
       box-sizing: border-box;
       max-width: 100%;
       overflow: hidden;

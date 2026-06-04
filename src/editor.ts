@@ -85,27 +85,24 @@ export class RoomLightsCardEditor extends LitElement {
           .label=${'Light / Switch'}
           @value-changed=${(ev: Event) => this._entityChanged(index, ev)}
         ></ha-entity-picker>
-        <ha-select
-          class="columns-select"
-          .label=${'Width'}
-          .value=${String(e.columns)}
-          .selectedIndex=${e.columns === 2 ? 1 : 0}
-          @value-changed=${(ev: CustomEvent<{ value: string | number }>) =>
-            this._columnsChanged(index, ev)}
-        >
-          <ha-list-item
-            .value=${'1'}
-            ?selected=${e.columns === 1}
+        <div class="width-toggle" role="group" aria-label="Tile width">
+          <button
+            type="button"
+            class=${e.columns === 1 ? 'selected' : ''}
+            aria-pressed=${e.columns === 1 ? 'true' : 'false'}
             @click=${(ev: Event) => this._columnsPicked(index, 1, ev)}
-            >Full</ha-list-item
           >
-          <ha-list-item
-            .value=${'2'}
-            ?selected=${e.columns === 2}
+            Full
+          </button>
+          <button
+            type="button"
+            class=${e.columns === 2 ? 'selected' : ''}
+            aria-pressed=${e.columns === 2 ? 'true' : 'false'}
             @click=${(ev: Event) => this._columnsPicked(index, 2, ev)}
-            >Half</ha-list-item
           >
-        </ha-select>
+            Half
+          </button>
+        </div>
         <mwc-icon-button
           class="remove-btn"
           label="Remove"
@@ -171,14 +168,14 @@ export class RoomLightsCardEditor extends LitElement {
   }
 
   /**
-   * Defensive backup: if the host's `value-changed` doesn't fire (some
-   * HA versions swallow it), we still get a click on the ha-list-item
-   * and can update the config directly.
+   * Direct handler for the Full/Half toggle buttons. Replaces the
+   * previous ha-select control which was unreliable across HA frontend
+   * versions (either the trigger rendered the value instead of the
+   * label, or value-changed didn't fire on click).
    */
   private _columnsPicked(index: number, columns: 1 | 2, ev: Event): void {
     ev.stopPropagation();
     if (!this._config) return;
-    // Don't double-fire if the value is already correct.
     if (this._config.entities[index]?.columns === columns) return;
     const entities = [...this._config.entities];
     entities[index] = { ...entities[index], columns };
@@ -246,8 +243,48 @@ export class RoomLightsCardEditor extends LitElement {
     .room-off-picker {
       width: 100%;
     }
-    .columns-select {
-      width: 100%;
+    .width-toggle {
+      display: flex;
+      width: 110px;
+      height: 40px;
+      background: var(
+        --secondary-background-color,
+        rgba(255, 255, 255, 0.05)
+      );
+      border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.1));
+      border-radius: 6px;
+      padding: 2px;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+    .width-toggle button {
+      flex: 1;
+      min-width: 0;
+      background: transparent;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: var(--primary-text-color);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 0 6px;
+      font-family: inherit;
+      text-transform: none;
+      letter-spacing: 0;
+      transition:
+        background-color 0.15s ease,
+        color 0.15s ease;
+    }
+    .width-toggle button:hover:not(.selected) {
+      background: var(--divider-color, rgba(0, 0, 0, 0.06));
+    }
+    .width-toggle button.selected {
+      background: var(--primary-color, #03a9f4);
+      color: var(--text-primary-color, #fff);
+    }
+    .width-toggle button:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 1px;
     }
     .remove-btn {
       --mdc-icon-button-size: 40px;
