@@ -88,18 +88,22 @@ export class RoomLightsCardEditor extends LitElement {
         <ha-select
           class="columns-select"
           .label=${'Width'}
-          @value-changed=${(ev: CustomEvent<{ value: string }>) =>
+          .value=${String(e.columns)}
+          .selectedIndex=${e.columns === 2 ? 1 : 0}
+          @value-changed=${(ev: CustomEvent<{ value: string | number }>) =>
             this._columnsChanged(index, ev)}
         >
-          <mwc-list-item
-            value="1"
-            ?selected=${e.columns !== 2}
-            >Full</mwc-list-item
+          <ha-list-item
+            .value=${'1'}
+            ?selected=${e.columns === 1}
+            @click=${(ev: Event) => this._columnsPicked(index, 1, ev)}
+            >Full</ha-list-item
           >
-          <mwc-list-item
-            value="2"
+          <ha-list-item
+            .value=${'2'}
             ?selected=${e.columns === 2}
-            >Half</mwc-list-item
+            @click=${(ev: Event) => this._columnsPicked(index, 2, ev)}
+            >Half</ha-list-item
           >
         </ha-select>
         <mwc-icon-button
@@ -154,12 +158,28 @@ export class RoomLightsCardEditor extends LitElement {
 
   private _columnsChanged(
     index: number,
-    ev: CustomEvent<{ value: string }>,
+    ev: CustomEvent<{ value: string | number | undefined }>,
   ): void {
     ev.stopPropagation();
     if (!this._config) return;
-    const raw = ev.detail?.value ?? '1';
-    const columns: 1 | 2 = raw === '2' ? 2 : 1;
+    const raw = ev.detail?.value;
+    const columns: 1 | 2 = String(raw) === '2' ? 2 : 1;
+    const entities = [...this._config.entities];
+    entities[index] = { ...entities[index], columns };
+    const newConfig: RoomLightsCardConfig = { ...this._config, entities };
+    fireEvent(this, 'config-changed', { config: newConfig });
+  }
+
+  /**
+   * Defensive backup: if the host's `value-changed` doesn't fire (some
+   * HA versions swallow it), we still get a click on the ha-list-item
+   * and can update the config directly.
+   */
+  private _columnsPicked(index: number, columns: 1 | 2, ev: Event): void {
+    ev.stopPropagation();
+    if (!this._config) return;
+    // Don't double-fire if the value is already correct.
+    if (this._config.entities[index]?.columns === columns) return;
     const entities = [...this._config.entities];
     entities[index] = { ...entities[index], columns };
     const newConfig: RoomLightsCardConfig = { ...this._config, entities };
