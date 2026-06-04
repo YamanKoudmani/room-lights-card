@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { fireEvent } from 'custom-card-helpers';
 import type { RoomLightsCardConfig, LightEntityConfig } from './types';
+import { normalizeLightConfig } from './const';
 
 @customElement('room-lights-card-editor')
 export class RoomLightsCardEditor extends LitElement {
@@ -14,26 +15,14 @@ export class RoomLightsCardEditor extends LitElement {
 
   setConfig(config: RoomLightsCardConfig): void {
     // Tolerate partial/missing fields so the editor can render.
-    // CRITICAL: preserve name and icon overrides on each entity.
-    // The previous implementation stripped entities down to
-    // {entity, columns}, which meant every round-trip
-    // (config-changed -> parent -> setConfig) wiped the custom
-    // name and icon the user had just set. The card then never
-    // saw the override and the editor form went blank.
+    // `normalizeLightConfig` preserves the per-entity `name` and
+    // `icon` overrides (omits them when blank instead of writing
+    // empty strings, and trims whitespace).
     const entities = Array.isArray(config.entities) ? config.entities : [];
     this._config = {
       ...config,
       name: config.name ?? '',
-      entities: entities.map((e) => ({
-        entity: e?.entity ?? '',
-        columns: e?.columns === 2 ? 2 : 1,
-        ...(typeof e?.name === 'string' && e.name.length > 0
-          ? { name: e.name }
-          : {}),
-        ...(typeof e?.icon === 'string' && e.icon.length > 0
-          ? { icon: e.icon }
-          : {}),
-      })),
+      entities: entities.map((e) => normalizeLightConfig(e)),
     };
   }
 
@@ -51,12 +40,15 @@ export class RoomLightsCardEditor extends LitElement {
       <div class="editor">
         <div class="section">
           <div class="section-title">Card</div>
-          <ha-textfield
-            label="Name"
+          <input
+            type="text"
+            class="card-name-field"
             .value=${cfg.name}
+            placeholder="Card name"
+            autocomplete="off"
             data-config-value="name"
             @input=${this._valueChanged}
-          ></ha-textfield>
+          />
           <ha-entity-picker
             class="room-off-picker"
             .hass=${this.hass}
@@ -129,15 +121,16 @@ export class RoomLightsCardEditor extends LitElement {
       ${hasEntity
         ? html`
             <div class="row-overrides">
-              <ha-textfield
+              <input
+                type="text"
                 class="name-field"
                 .value=${e.name ?? ''}
-                .label=${'Display name (optional)'}
-                .placeholder=${'Defaults to entity friendly name'}
+                placeholder="Display name (optional)"
+                autocomplete="off"
                 data-config-index=${index}
                 data-config-key="name"
                 @input=${this._overrideChanged}
-              ></ha-textfield>
+              />
               <ha-icon-picker
                 class="icon-picker"
                 .hass=${this.hass}
@@ -313,7 +306,43 @@ export class RoomLightsCardEditor extends LitElement {
       align-items: center;
       margin-top: 6px;
     }
-    .name-field,
+    /* Native <input> styled to match the HA theme. We use native
+       inputs (not <ha-textfield>) because the ha-textfield custom
+       element does not render in some HA frontend versions (the host
+       element collapses to zero size with no visible content). Native
+       inputs are guaranteed to render and inherit HA CSS variables. */
+    .card-name-field,
+    .name-field {
+      flex: 1 1 0;
+      min-width: 0;
+      width: 100%;
+      height: 40px;
+      padding: 0 12px;
+      box-sizing: border-box;
+      border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.15));
+      border-radius: 4px;
+      background: var(
+        --secondary-background-color,
+        rgba(255, 255, 255, 0.05)
+      );
+      color: var(--primary-text-color);
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.2;
+      outline: none;
+      transition: border-color 0.15s ease;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .card-name-field:focus,
+    .name-field:focus {
+      border-color: var(--primary-color, #03a9f4);
+    }
+    .card-name-field::placeholder,
+    .name-field::placeholder {
+      color: var(--secondary-text-color, rgba(0, 0, 0, 0.45));
+      opacity: 1;
+    }
     .icon-picker {
       flex: 1 1 0;
       min-width: 0;

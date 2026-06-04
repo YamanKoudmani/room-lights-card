@@ -9,6 +9,7 @@ import {
   CARD_VERSION,
   FALLBACK_TILE_ICON,
   LONG_PRESS_MS,
+  normalizeLightConfig,
 } from './const';
 import { unsafeCSS } from 'lit';
 import type { RoomLightsCardConfig, LightTileInfo, RoomState } from './types';
@@ -98,18 +99,14 @@ export class RoomLightsCard extends LitElement {
       throw new Error('You must define at least one entity in `entities`');
     }
 
-    // Normalise: accept bare strings, default columns to 1.
+    // Normalise: accept bare strings, default columns to 1, and
+    // PRESERVE the per-entity `name` and `icon` overrides. The
+    // previous version of this loop rebuilt each entity as
+    // `{entity, columns}` only, silently stripping any name/icon the
+    // user had set in the editor — so the card preview never reflected
+    // the overrides. `normalizeLightConfig` does the right thing.
     const entities = config.entities
-      .map((e: unknown) => {
-        if (typeof e === 'string') return { entity: e, columns: 1 as 1 | 2 };
-        if (e && typeof e === 'object') {
-          const obj = e as Record<string, unknown>;
-          const entity = typeof obj.entity === 'string' ? obj.entity : '';
-          const columns: 1 | 2 = obj.columns === 2 ? 2 : 1;
-          return { entity, columns };
-        }
-        return { entity: '', columns: 1 as 1 | 2 };
-      })
+      .map((e) => normalizeLightConfig(e))
       .filter((e) => e.entity.length > 0);
 
     if (entities.length === 0) {
