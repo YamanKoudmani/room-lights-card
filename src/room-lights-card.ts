@@ -439,6 +439,14 @@ export class RoomLightsCard extends LitElement {
 
   private _toggleAll(): void {
     if (!this.hass || !this._config) return;
+
+    const aggregate = aggregateRoomState(
+      this.hass,
+      this._config.entities,
+      this._config.room_off,
+    );
+    const service = aggregate.anyOn ? 'turn_off' : 'turn_on';
+
     // When `room_off` is configured, the header represents that single
     // target — it's the source of truth for "the room". Tapping toggles
     // only that entity, never the tile set. (Tiles stay independently
@@ -448,7 +456,7 @@ export class RoomLightsCard extends LitElement {
       const id = this._config.room_off;
       const domain = id.split('.')[0];
       if (domain !== 'light' && domain !== 'switch') return;
-      void this.hass.callService(domain, 'toggle', { entity_id: id });
+      void this.hass.callService(domain, service, { entity_id: id });
       return;
     }
     const ids = this._config.entities.map((e) => e.entity).filter(Boolean);
@@ -464,7 +472,7 @@ export class RoomLightsCard extends LitElement {
       else byDomain.set(domain, [id]);
     }
     for (const [domain, list] of byDomain) {
-      void this.hass.callService(domain, 'toggle', { entity_id: list });
+      void this.hass.callService(domain, service, { entity_id: list });
     }
   }
 
