@@ -45,12 +45,20 @@ export class RoomLightsCard extends LitElement {
   private _resizeObserver?: ResizeObserver;
   private _lastReportedHeight = 0;
 
-  // Bound listeners so we can add/remove them on connect/disconnect
-  private readonly _onPointerDown = (e: PointerEvent): void =>
-    this._handlePointerDown(e);
-  private readonly _onPointerCancel = (e: PointerEvent): void =>
-    this._handlePointerCancel(e);
-  private readonly _onClick = (e: MouseEvent): void => this._handleClick(e);
+  // Bound listeners. Click / pointerdown live on the tile and header
+  // elements themselves (via Lit `@event` bindings) rather than on the
+  // host — an event fired inside an `ha-icon`'s shadow root gets its
+  // `target` retargeted to the host when it crosses the shadow boundary,
+  // which would defeat any `e.target.closest('[data-tile]')` lookup.
+  // `pointercancel` has no tile-specific target to find, so it stays on
+  // the host and only needs to clear in-flight press state.
+  private readonly _onHeaderClick = (): void => this._toggleAll();
+  private readonly _onTileClick = (e: MouseEvent): void =>
+    this._handleTileClick(e);
+  private readonly _onTilePointerDown = (e: PointerEvent): void =>
+    this._handleTilePointerDown(e);
+  private readonly _onPointerCancel = (_e: PointerEvent): void =>
+    this._handlePointerCancel();
 
   static getConfigElement(): HTMLElement {
     return document.createElement('room-lights-card-editor') as HTMLElement;
@@ -146,17 +154,13 @@ export class RoomLightsCard extends LitElement {
 
   connectedCallback(): void {
     super.connectedCallback();
-    this.addEventListener('pointerdown', this._onPointerDown);
     this.addEventListener('pointercancel', this._onPointerCancel);
-    this.addEventListener('click', this._onClick, { capture: true });
   }
 
   disconnectedCallback(): void {
     this._resizeObserver?.disconnect();
     this._resizeObserver = undefined;
-    this.removeEventListener('pointerdown', this._onPointerDown);
     this.removeEventListener('pointercancel', this._onPointerCancel);
-    this.removeEventListener('click', this._onClick, { capture: true });
     this._clearPress();
     super.disconnectedCallback();
   }
@@ -232,6 +236,7 @@ export class RoomLightsCard extends LitElement {
             aria-label=${cfg.room_off
               ? `Toggle ${cfg.room_off}`
               : `Toggle all lights in ${cfg.name}`}
+            @click=${this._onHeaderClick}
             @keydown=${this._onHeaderKey}
           >
             <ha-icon
@@ -274,6 +279,8 @@ export class RoomLightsCard extends LitElement {
         role="button"
         tabindex="0"
         aria-label="Toggle ${name}"
+        @click=${this._onTileClick}
+        @pointerdown=${this._onTilePointerDown}
         @keydown=${this._onTileKey}
       >
         <div class="tile-icon-wrap">
@@ -332,11 +339,21 @@ export class RoomLightsCard extends LitElement {
   // ---------------------------------------------------------------------------
   // Event handling: long-press → more-info, tap → toggle
   // ---------------------------------------------------------------------------
+  //
+  // Why per-element listeners (via Lit's `@event` bindings) rather than
+  // a single host-level `click` / `pointerdown` listener:
+  //
+  // The tiles render an <ha-state-icon> / <ha-icon> inside, which itself
+  // has a shadow root. When a click bubbles out of that shadow root,
+  // the event's `target` is *retargeted* to the host element (the
+  // <room-lights-card>), so `e.target.closest('[data-tile]')` returns
+  // null and the host-level handler falls through doing nothing. With
+  // Lit's per-element binding, `e.currentTarget` is the tile/header
+  // itself — no shadow boundary in the way — and the entity id is read
+  // straight off `currentTarget.dataset.entityId`.
 
-  private _handlePointerDown(e: PointerEvent): void {
-    const tile = (e.target as HTMLElement | null)?.closest<HTMLElement>(
-      '[data-tile]',
-    );
+  private _handleTilePointerDown(e: PointerEvent): void {
+    const tile = e.currentTarget as HTMLElement | null;
     if (!tile) return;
     const entityId = tile.dataset.entityId;
     if (!entityId) return;
@@ -352,40 +369,26 @@ export class RoomLightsCard extends LitElement {
     this._press = { entityId, timer, triggered: false };
   }
 
-  private _handlePointerCancel(_e: PointerEvent): void {
+  private _handlePointerCancel(): void {
     this._clearPress();
   }
 
-  private _handleClick(e: MouseEvent): void {
-    const target = e.target as HTMLElement | null;
-    if (!target) return;
-
-    // Header tap → toggle all
-    const header = target.closest('[data-header]');
-    if (header) {
+  private _handleTileClick(e: MouseEvent): void {
+    const tile = e.currentTarget as HTMLElement | null;
+    if (!tile) return;
+    const entityId = tile.dataset.entityId;
+    if (!entityId) return;
+    if (this._press && this._press.entityId === entityId && this._press.triggered) {
+      // Long-press just fired; suppress the trailing click.
       e.preventDefault();
       e.stopPropagation();
-      this._toggleAll();
+      this._clearPress();
       return;
     }
-
-    // Tile tap → toggle single (or open more-info if we just long-pressed)
-    const tile = target.closest<HTMLElement>('[data-tile]');
-    if (tile) {
-      const entityId = tile.dataset.entityId;
-      if (!entityId) return;
-      if (this._press && this._press.entityId === entityId && this._press.triggered) {
-        // Long-press just fired; suppress the trailing click.
-        e.preventDefault();
-        e.stopPropagation();
-        this._clearPress();
-        return;
-      }
-      e.preventDefault();
-      e.stopPropagation();
-      this._toggleLight(entityId);
-      this._clearPress();
-    }
+    e.preventDefault();
+    e.stopPropagation();
+    this._toggleLight(entityId);
+    this._clearPress();
   }
 
   private _onHeaderKey = (e: KeyboardEvent): void => {
