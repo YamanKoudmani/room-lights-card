@@ -143,11 +143,18 @@ export class RoomLightsCard extends LitElement {
       typeof config.room_off === 'string' ? config.room_off.trim() : '';
     const roomOff = rawRoomOff.length > 0 ? rawRoomOff : undefined;
 
+    // Normalise icon: empty string → undefined so a cleared editor
+    // picker removes the field.
+    const rawIcon =
+      typeof config.icon === 'string' ? config.icon.trim() : '';
+    const icon = rawIcon.length > 0 ? rawIcon : undefined;
+
     this._config = {
       ...config,
       type: config.type ?? 'custom:room-lights-card',
       entities,
       room_off: roomOff,
+      icon,
     };
   }
 
@@ -221,7 +228,10 @@ export class RoomLightsCard extends LitElement {
       cfg.room_off,
     );
     const anyOn = aggregate.anyOn;
-    const headerIcon = headerIconFor(aggregate);
+    const headerIcon =
+      typeof cfg.icon === 'string' && cfg.icon.trim().length > 0
+        ? cfg.icon.trim()
+        : headerIconFor(aggregate);
     const headerStatus = headerStatusText(aggregate);
 
     return html`

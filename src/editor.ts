@@ -28,6 +28,7 @@ export class RoomLightsCardEditor extends LitElement {
     this._config = {
       ...config,
       name: config.name ?? '',
+      icon: config.icon ?? '',
       entities: entities.map((e) => normalizeLightConfig(e)),
     };
   }
@@ -42,6 +43,7 @@ export class RoomLightsCardEditor extends LitElement {
 
     const rootSchema: HaFormSchema = [
       { name: 'name', selector: { text: {} } },
+      { name: 'icon', selector: { icon: {} } },
       {
         name: 'room_off',
         selector: { entity: { domain: ['light', 'group', 'switch'] } },
@@ -54,6 +56,7 @@ export class RoomLightsCardEditor extends LitElement {
         .hass=${this.hass}
         .data=${{
           name: cfg.name,
+          icon: cfg.icon ?? '',
           room_off: this._roomOff,
           compact: cfg.compact === true,
         }}
@@ -81,25 +84,21 @@ export class RoomLightsCardEditor extends LitElement {
     e: LightEntityConfig,
     index: number,
   ): TemplateResult {
-    // `type: "grid"` puts its child fields side-by-side. `name: ""` with
-    // the default `flatten` keeps the fields at the form-data root so
-    // we can read `entity`, `columns`, `name`, `icon` directly from
-    // `ev.detail.value` without nesting.
-    //
-    // Note: the entity selector is naturally taller than the columns
-    // dropdown because it stacks icon + name + area vertically. Both
-    // fields end up on the same grid row, but the row's height follows
-    // the taller sibling. This is HA's own entity-picker design, not
-    // a bug we can fix from outside the shadow DOM.
+    // Lay out fields to prevent vertical misalignment:
+    // 1. Entity selector (stacks icon + name + area and takes up full width).
+    // 2. Display name (takes up full width).
+    // 3. Tile width & Custom Icon (side-by-side). Both use floating labels
+    //    so they align perfectly on the same row.
     const entitySchema: HaFormSchema = [
+      {
+        name: 'entity',
+        selector: { entity: { domain: ['light', 'switch'] } },
+      },
+      { name: 'name', selector: { text: {} } },
       {
         type: 'grid',
         name: '',
         schema: [
-          {
-            name: 'entity',
-            selector: { entity: { domain: ['light', 'switch'] } },
-          },
           {
             name: 'columns',
             selector: {
@@ -112,13 +111,6 @@ export class RoomLightsCardEditor extends LitElement {
               },
             },
           },
-        ],
-      },
-      {
-        type: 'grid',
-        name: '',
-        schema: [
-          { name: 'name', selector: { text: {} } },
           {
             name: 'icon',
             selector: { icon: {} },
@@ -182,12 +174,17 @@ export class RoomLightsCardEditor extends LitElement {
     if (!this._config) return;
     const value = (
       ev.detail as {
-        value: { name?: string; room_off?: string; compact?: boolean };
+        value: { name?: string; icon?: string; room_off?: string; compact?: boolean };
       }
     ).value;
     const newConfig: RoomLightsCardConfig = {
       ...this._config,
       name: value.name ?? '',
+      // Drop icon entirely when cleared
+      icon:
+        value.icon && value.icon.trim().length > 0
+          ? value.icon.trim()
+          : undefined,
       // Drop room_off entirely when the picker is cleared so the YAML
       // doesn't carry a useless `room_off: ''` line.
       room_off:
@@ -234,6 +231,7 @@ export class RoomLightsCardEditor extends LitElement {
 
   private _computeRootLabel = (schema: HaFormSchemaItem): string => {
     if (schema.name === 'name') return 'Card name';
+    if (schema.name === 'icon') return 'Card icon (optional)';
     if (schema.name === 'room_off') return 'Room off target (optional)';
     if (schema.name === 'compact') return 'Compact mode';
     return '';

@@ -1,6 +1,6 @@
 import type { LightEntityConfig } from './types';
 
-export const CARD_VERSION = '1.0.21';
+export const CARD_VERSION = '1.0.22';
 export const CARD_TAG = 'room-lights-card';
 export const EDITOR_TAG = 'room-lights-card-editor';
 

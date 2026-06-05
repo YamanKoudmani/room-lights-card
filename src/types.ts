@@ -19,6 +19,8 @@ export interface RoomLightsCardConfig extends LovelaceCardConfig {
   type: string;
   name: string;
   entities: LightEntityConfig[];
+  /** Optional custom icon override for the card header. */
+  icon?: string;
   /**
    * Optional master target for the header tap. When set, the header toggles
    * THIS entity (a light, group, or switch) instead of the tile entities.
