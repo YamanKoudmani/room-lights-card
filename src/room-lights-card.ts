@@ -496,13 +496,24 @@ export class RoomLightsCard extends LitElement {
       box-sizing: border-box;
       max-width: 100%;
       overflow: hidden;
+      /* Theme-adaptive background that matches HA's built-in ha-card
+         chain. The previous --secondary-background-color fallback was
+         the bug behind the glassmorphism complaint: in those themes
+         that variable is set to a transparent rgba, so our card looked
+         like a hole in the layout. The backdrop-filter inheritance
+         is what makes the glassmorphism blur effect work — themes
+         opt in by setting --ha-card-backdrop-filter to e.g. blur(20px). */
       background: var(
         --ha-card-background,
-        var(
-          --card-background-color,
-          var(--secondary-background-color, #f5f5f5)
-        )
+        var(--card-background-color, #1f1f1f)
       );
+      -webkit-backdrop-filter: var(--ha-card-backdrop-filter, none);
+      backdrop-filter: var(--ha-card-backdrop-filter, none);
+      border: 1px solid
+        var(
+          --ha-card-border-color,
+          var(--divider-color, rgba(0, 0, 0, 0.12))
+        );
     }
     .card-inner {
       display: flex;
@@ -574,7 +585,12 @@ export class RoomLightsCard extends LitElement {
       align-items: center;
       gap: 10px;
       padding: 12px 14px;
-      background: var(--secondary-background-color, rgba(0, 0, 0, 0.04));
+      /* Higher alpha fallback than 0.04 — in glassmorphism themes the
+         standard --secondary-background-color is often a very faint
+         rgba that disappears against the ha-card's blurred background,
+         making tiles look like empty slots. The 0.15 overlay keeps the
+         "elevated surface" feel without going opaque. */
+      background: var(--secondary-background-color, rgba(127, 127, 127, 0.15));
       border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.08));
       border-radius: 10px;
       cursor: pointer;
