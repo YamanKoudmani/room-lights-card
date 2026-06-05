@@ -3,7 +3,6 @@ import type { HassEntity } from 'home-assistant-js-websocket';
 import {
   ICON_ANY_ON,
   ICON_OFF_ALL,
-  DEFAULT_COLUMNS,
   FALLBACK_TILE_ICON,
 } from './const';
 import type {
@@ -34,7 +33,7 @@ export function brightnessPercent(
 ): number | null {
   if (!stateObj || stateObj.state !== 'on') return null;
   const b = stateObj.attributes?.brightness;
-  if (typeof b !== 'number' || b <= 0) return null;
+  if (typeof b !== 'number' || !b) return null;
   return Math.round((b / 255) * 100);
 }
 
@@ -140,9 +139,4 @@ export function headerStatusText(agg: RoomState): string {
 /** Header icon: lightbulb-off when everything is off, lightbulb otherwise. */
 export function headerIconFor(agg: RoomState): string {
   return agg.anyOn ? ICON_ANY_ON : ICON_OFF_ALL;
-}
-
-/** True when this config slot is the half-width slot. */
-export function isHalfWidth(columns: 1 | 2 | undefined): boolean {
-  return (columns ?? DEFAULT_COLUMNS) === 2;
 }

@@ -145,6 +145,17 @@ export class RoomLightsCard extends LitElement {
       typeof config.room_off === 'string' ? config.room_off.trim() : '';
     const roomOff = rawRoomOff.length > 0 ? rawRoomOff : undefined;
 
+    // Validate room_off shape: HA entity_ids are <domain>.<object_id>
+    // (lowercase letters and underscores for the domain, lowercase
+    // letters, digits, and underscores for the object_id). Catching
+    // typos here gives the user a readable error in the dev tools
+    // console instead of "service not found" at toggle time.
+    if (roomOff !== undefined && !/^[a-z_]+\.[a-z0-9_]+$/i.test(roomOff)) {
+      throw new Error(
+        `Invalid \`room_off\` entity_id: "${config.room_off}" (expected format: "domain.object_id")`,
+      );
+    }
+
     // Normalise icon: empty string → undefined so a cleared editor
     // picker removes the field.
     const rawIcon =
@@ -184,14 +195,11 @@ export class RoomLightsCard extends LitElement {
       cfg.room_off,
     );
     const anyOn = aggregate.anyOn;
-    // If a custom icon is configured, always use it (the on/off visual
-    // distinction is still conveyed by the accent colour). Otherwise fall
-    // back to the smart group icons: mdi:lightbulb-group-off when all
-    // off, mdi:lightbulb-group when any light is on.
-    const headerIcon =
-      typeof cfg.icon === 'string' && cfg.icon.trim().length > 0
-        ? cfg.icon.trim()
-        : headerIconFor(aggregate);
+    // cfg.icon is already normalised to undefined when empty in setConfig,
+    // so a single nullish check is enough. Falls back to the smart group
+    // icons: mdi:lightbulb-group-off when all off, mdi:lightbulb-group
+    // when any light is on. A custom icon overrides both.
+    const headerIcon = cfg.icon ?? headerIconFor(aggregate);
     const headerStatus = headerStatusText(aggregate);
 
     return html`
@@ -235,8 +243,15 @@ export class RoomLightsCard extends LitElement {
     // A custom icon means the user wants a fixed icon regardless of
     // entity state. In that case we render <ha-icon> (not <ha-state-icon>)
     // so the state-driven icon doesn't override the user's choice.
-    const hasCustomIcon =
-      typeof config.icon === 'string' && config.icon.length > 0;
+    // normalizeLightConfig already coerces empty strings to undefined,
+    // so a string check is sufficient here.
+    const hasCustomIcon = typeof config.icon === 'string';
+    // Announce the current state so screen readers don't get a bare
+    // "Toggle X" with no context. status already encodes brightness
+    // (e.g. "100%") or "On"/"Off" for non-dimmable lights.
+    const ariaLabel = isUnavailable
+      ? `${name} unavailable`
+      : `Toggle ${name}, ${isOn ? `on${status !== 'On' ? ` at ${status}` : ''}` : 'off'}`;
 
     return html`
       <div
@@ -245,7 +260,7 @@ export class RoomLightsCard extends LitElement {
         data-entity-id=${config.entity}
         role="button"
         tabindex="0"
-        aria-label="Toggle ${name}"
+        aria-label=${ariaLabel}
         @click=${this._onTileClick}
         @pointerdown=${this._onTilePointerDown}
         @keydown=${this._onTileKey}
@@ -366,11 +381,17 @@ export class RoomLightsCard extends LitElement {
   };
 
   private _onTileKey = (e: KeyboardEvent): void => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      const target = e.currentTarget as HTMLElement | null;
-      const entityId = target?.dataset.entityId;
-      if (entityId) this._toggleLight(entityId);
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    const target = e.currentTarget as HTMLElement | null;
+    const entityId = target?.dataset.entityId;
+    if (!entityId) return;
+    // Shift+Enter mirrors the long-press affordance: opens more-info
+    // instead of toggling. Keeps the keyboard path parity with pointer.
+    if (e.shiftKey) {
+      this._openMoreInfo(entityId);
+    } else {
+      this._toggleLight(entityId);
     }
   };
 

@@ -10,7 +10,6 @@ import {
   headerStatusText,
   headerIconFor,
   resolveLightTile,
-  isHalfWidth,
 } from '../utils';
 import { ICON_ANY_ON, ICON_OFF_ALL } from '../const';
 
@@ -450,15 +449,4 @@ describe('resolveLightTile', () => {
     });
     expect(t.icon).toBe('mdi:lightbulb');
   });
-});
-
-// ---------------------------------------------------------------------------
-// isHalfWidth
-// ---------------------------------------------------------------------------
-
-describe('isHalfWidth', () => {
-  it('true for 2', () => expect(isHalfWidth(2)).toBe(true));
-  it('false for 1', () => expect(isHalfWidth(1)).toBe(false));
-  it('false for undefined (defaults to full-width)', () =>
-    expect(isHalfWidth(undefined)).toBe(false));
 });

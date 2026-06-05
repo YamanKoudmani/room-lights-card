@@ -1,8 +1,6 @@
 import type { LightEntityConfig } from './types';
 
-export const CARD_VERSION = '1.0.26';
-export const CARD_TAG = 'room-lights-card';
-export const EDITOR_TAG = 'room-lights-card-editor';
+export const CARD_VERSION = '1.0.27';
 
 /** Accent color for on-state icons + label (warm white) */
 export const ACCENT_ON = '#f5c842';

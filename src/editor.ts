@@ -2,7 +2,7 @@ import { LitElement, html, css, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { fireEvent, type HomeAssistant } from 'custom-card-helpers';
 import type { RoomLightsCardConfig, LightEntityConfig } from './types';
-import { normalizeLightConfig } from './const';
+import { normalizeLightConfig, DEFAULT_COLUMNS } from './const';
 
 // Subset of HA's HaFormSchema covering everything we use. The full
 // type lives in HA's frontend and isn't exported via custom-card-helpers.
@@ -266,7 +266,7 @@ export class RoomLightsCardEditor extends LitElement {
     if (!this._config) return;
     const entities = [
       ...this._config.entities,
-      { entity: '', columns: 1 as 1 | 2 },
+      { entity: '', columns: DEFAULT_COLUMNS },
     ];
     const newConfig: RoomLightsCardConfig = { ...this._config, entities };
     this._config = newConfig;

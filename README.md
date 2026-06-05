@@ -48,6 +48,7 @@ entities:
     columns: 2
   - entity: light.floor_lamp
     columns: 2
+# compact: false                          # optional, omit for the default room-sized layout
 ```
 
 ## Options
@@ -58,6 +59,7 @@ entities:
 | `name`     | string | yes      | Display name shown in the card header.                                               |
 | `entities` | array  | yes      | List of light/switch entities to control. See [Entity options](#entity-options).     |
 | `room_off` | string | no       | Master target for the header tap. When set, tapping the header toggles THIS entity (a `light.*`, `group.*`, or `switch.*`) instead of every tile at once. Tile entities remain individually toggleable. Useful with a HA light group (e.g. `group.living_room_lights`) so the header represents the whole room while the tiles show a curated subset. |
+| `compact`  | boolean | no      | Tighter layout: smaller header, reduced tile padding, single-row grid. Useful for sidebars or dense dashboards. Default `false`. |
 
 ## Entity options
 
