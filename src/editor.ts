@@ -67,14 +67,13 @@ export class RoomLightsCardEditor extends LitElement {
       <div class="entities-section">
         <div class="section-title">Entities</div>
         ${cfg.entities.map((e, i) => this._renderEntitySection(e, i))}
-        <mwc-button
+        <ha-button
           class="add-btn"
-          raised
           @click=${this._addEntity}
         >
-          <ha-icon icon="mdi:plus" slot="graphic"></ha-icon>
+          <ha-icon icon="mdi:plus" slot="icon"></ha-icon>
           Add entity
-        </mwc-button>
+        </ha-button>
       </div>
     `;
   }
@@ -335,7 +334,11 @@ export class RoomLightsCardEditor extends LitElement {
       color: var(--error-color, #b71c1c);
     }
     .add-btn {
-      --mdc-theme-primary: var(--primary-color);
+      /* ha-button is HA-themed end-to-end (it picks up --primary-color,
+         --card-background-color, etc. internally) so it correctly
+         inherits transparency in glassmorphism themes. The previous
+         <mwc-button raised> used Material's own --mdc-theme-primary
+         fallback (opaque blue) and didn't honor translucent themes. */
       align-self: flex-start;
       margin-top: 4px;
     }
