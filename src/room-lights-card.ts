@@ -38,6 +38,13 @@ export class RoomLightsCard extends LitElement {
 
   private _press: PressState | null = null;
 
+  // Dynamic sizing: we observe the ha-card's rendered height and tell
+  // HA about it via card-size-changed. This replaces the old constant
+  // formulas (`1 + rows` / `2 + rows`) that over- or under-allocated
+  // depending on view mode and theme.
+  private _resizeObserver?: ResizeObserver;
+  private _lastReportedHeight = 0;
+
   // Bound listeners so we can add/remove them on connect/disconnect
   private readonly _onPointerDown = (e: PointerEvent): void =>
     this._handlePointerDown(e);
@@ -61,13 +68,14 @@ export class RoomLightsCard extends LitElement {
   }
 
   getCardSize(): number {
-    // HA's grid row is ~56-60px in the modern sections view. Empirically
-    // the previous `2 + rows` over-allocated by ~80px (≈2 rows) for a
-    // 3-row card — the edit-mode bounding box showed a visible empty
-    // band below the last tile. `1 + rows` lands within ~20px of the
-    // actual content height, which is the closest we can get without
-    // pixel-perfect measurement (HA's row height varies by view/theme).
-    return 1 + this._computeRows();
+    // Initial estimate used before the first render. The ResizeObserver
+    // (see _reportSize) refines this by measuring the actual rendered
+    // ha-card height and dispatching card-size-changed, so HA resizes
+    // the grid cell to fit the content exactly — no pixel math here,
+    // no edit-mode empty band, no view-mode cropping. The base row
+    // count accounts for the card chrome (header + padding + margin)
+    // that sits above the tile grid.
+    return this._baseRows() + this._computeRows();
   }
 
   getGridOptions(): {
@@ -79,15 +87,22 @@ export class RoomLightsCard extends LitElement {
     max_columns: number;
   } {
     return {
-      rows: 1 + this._computeRows(),
-      // Lowered from 3 so a 1- or 2-row card doesn't get the previous
-      // formula's `2 + rows` floor pushed up to 3 rows of empty space.
-      min_rows: 2,
+      rows: this._baseRows() + this._computeRows(),
+      min_rows: this._baseRows() + 1,
       max_rows: 8,
       columns: 12,
       min_columns: 6,
       max_columns: 12,
     };
+  }
+
+  /**
+   * Chrome (header + padding + margin) above the tile grid, in HA
+   * grid rows. Compact mode is tighter, so 1 row less is enough.
+   * Used as the constant portion of getCardSize / getGridOptions.
+   */
+  private _baseRows(): number {
+    return this._config?.compact ? 1 : 2;
   }
 
   setConfig(config: RoomLightsCardConfig): void {
@@ -137,11 +152,57 @@ export class RoomLightsCard extends LitElement {
   }
 
   disconnectedCallback(): void {
+    this._resizeObserver?.disconnect();
+    this._resizeObserver = undefined;
     this.removeEventListener('pointerdown', this._onPointerDown);
     this.removeEventListener('pointercancel', this._onPointerCancel);
     this.removeEventListener('click', this._onClick, { capture: true });
     this._clearPress();
     super.disconnectedCallback();
+  }
+
+  protected firstUpdated(): void {
+    this._setupResizeObserver();
+  }
+
+  protected updated(): void {
+    // Report size after every render. ResizeObserver covers layout
+    // changes, but explicit reporting handles config-driven re-renders
+    // (compact toggle, entity add/remove) where the content height
+    // might shift before the observer fires. The early-return on
+    // unchanged height makes this cheap.
+    this._reportSize();
+  }
+
+  private _setupResizeObserver(): void {
+    if (this._resizeObserver) return;
+    const card = this.shadowRoot?.querySelector<HTMLElement>('ha-card');
+    if (!card) return;
+    this._resizeObserver = new ResizeObserver(() => this._reportSize());
+    this._resizeObserver.observe(card);
+  }
+
+  private _reportSize(): void {
+    const card = this.shadowRoot?.querySelector<HTMLElement>('ha-card');
+    if (!card) return;
+    const height = card.offsetHeight;
+    if (height === 0 || height === this._lastReportedHeight) return;
+    this._lastReportedHeight = height;
+    // HA's grid cell is 56px tall in sections view (per developer docs).
+    // Convert the actual rendered height to a row count, rounding up so
+    // we never under-allocate. HA's masonry view uses 50px per unit
+    // instead, but it still respects the same `size` value, so a
+    // ~6px/row over-allocation there is harmless (the card just sits
+    // in a slightly taller cell).
+    const rowHeight = 56;
+    const rows = Math.max(1, Math.ceil(height / rowHeight));
+    this.dispatchEvent(
+      new CustomEvent('card-size-changed', {
+        detail: { size: rows },
+        bubbles: true,
+        composed: true,
+      }),
+    );
   }
 
   protected render(): TemplateResult | typeof nothing {
