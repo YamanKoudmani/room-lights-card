@@ -1,4 +1,4 @@
-import { LitElement, html, css, nothing, unsafeCSS, type TemplateResult } from 'lit';
+import { LitElement, html, css, nothing, unsafeCSS, type PropertyValues, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { fireEvent } from 'custom-card-helpers';
@@ -180,6 +180,26 @@ export class RoomLightsCard extends LitElement {
     this.removeEventListener('pointercancel', this._onPointerCancel);
     this._clearPress();
     super.disconnectedCallback();
+  }
+
+  protected shouldUpdate(changedProperties: PropertyValues): boolean {
+    if (changedProperties.has('_config')) return true;
+    if (!changedProperties.has('hass')) return true;
+
+    const oldHass = changedProperties.get('hass') as HomeAssistant | undefined;
+    const newHass = this.hass;
+    if (!oldHass || !newHass) return true;
+
+    const cfg = this._config;
+    if (!cfg) return true;
+
+    const watchedIds = cfg.entities.map((e) => e.entity);
+    if (cfg.room_off) watchedIds.push(cfg.room_off);
+
+    for (const eid of watchedIds) {
+      if (oldHass.states[eid] !== newHass.states[eid]) return true;
+    }
+    return false;
   }
 
   protected render(): TemplateResult | typeof nothing {

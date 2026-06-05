@@ -1,6 +1,6 @@
 import type { LightEntityConfig } from './types';
 
-export const CARD_VERSION = '1.0.27';
+export const CARD_VERSION = '1.0.28';
 
 /** Accent color for on-state icons + label (warm white) */
 export const ACCENT_ON = '#f5c842';
