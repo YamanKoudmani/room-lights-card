@@ -499,29 +499,23 @@ export class RoomLightsCard extends LitElement {
       box-sizing: border-box;
       max-width: 100%;
       overflow: hidden;
-      /* Theme-adaptive background that mirrors HA's own ha-card.
-         We deliberately have NO hardcoded fallback color here:
-           • Glassmorphism themes set --ha-card-background to an
-             rgba (e.g. rgba(0,0,0,0.3)) and --ha-card-backdrop-filter
-             to e.g. blur(20px) — we inherit that and render glass.
-           • Standard themes set --card-background-color — we use that.
-           • If a theme sets neither, the card is fully transparent
-             and the dashboard background shows through (same as
-             HA's own ha-card in default themes). The earlier
-             #1f1f1f fallback forced an opaque dark panel on
-             every glassmorphism theme and looked hardcoded against
-             the rest of the layout — removing it is the fix. */
-      background: var(
-        --ha-card-background,
-        var(--card-background-color)
-      );
+      /* Background policy: prefer the glassmorphism variable
+         (--ha-card-background) and otherwise default to transparent.
+         We deliberately do NOT include --card-background-color in
+         the chain — that variable is a solid color in many dark
+         themes and would force this card into an opaque panel that
+         the dashboard background can't show through, which is the
+         bug v1.0.19 fixes. Themes that want a solid surface for this
+         card can either:
+           • set --ha-card-background to their solid color, or
+           • wrap the card in a vertical / grid stack with their own
+             background. The border follows the same pattern: a
+             theme-supplied --ha-card-border-color wins, else no
+             visible border. */
+      background: var(--ha-card-background, transparent);
       -webkit-backdrop-filter: var(--ha-card-backdrop-filter, none);
       backdrop-filter: var(--ha-card-backdrop-filter, none);
-      border: 1px solid
-        var(
-          --ha-card-border-color,
-          var(--divider-color, transparent)
-        );
+      border: 1px solid var(--ha-card-border-color, transparent);
     }
     .card-inner {
       display: flex;
