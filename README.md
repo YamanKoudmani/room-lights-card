@@ -1,4 +1,5 @@
 # Room Lights Card
+<img width="584" height="385" alt="image" src="https://github.com/user-attachments/assets/7cd59f05-36d6-4f38-be1b-d4253843c232" />
 
 A custom Home Assistant Lovelace card for controlling all lights in a room from a single tappable card. Tiles show on/off state and brightness, the header shows the room summary, and long-pressing any tile opens Home Assistant's more-info dialog.
 
