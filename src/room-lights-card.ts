@@ -531,16 +531,19 @@ export class RoomLightsCard extends LitElement {
          overrides it — the more specific shadow tree wins.
 
          CSS custom properties DO cross the shadow boundary, so
-         setting --ha-card-background: transparent here makes
-         ha-card's :host evaluate var(--ha-card-background, ...)
-         to transparent. The earlier #1f1f1f fallback (v1.0.15–17)
-         and the --card-background-color chain (v1.0.18) both
-         failed because they either hardcoded an opaque color
-         or consulted a global variable that dark themes set
-         to a solid dark color. Now transparent is the definitive
-         default; users who want a surface can set
-         --ha-card-background at the dashboard level. */
-      --ha-card-background: transparent;
+         setting --ha-card-background here lets ha-card's :host
+         pick up our value. The previous "transparent" default
+         (v1.0.19–25) was too see-through on glassmorphic themes —
+         the card disappeared into the background and the content
+         lost contrast. The earlier #1f1f1f fallback (v1.0.15–17)
+         and --card-background-color chain (v1.0.18) both failed
+         on dark themes. We now use color-mix() to blend the
+         theme's card color at 70% opacity with transparent,
+         giving a subtle frosted surface that works on both light
+         and dark themes while still letting glassmorphic backgrounds
+         show through. Users can still override --ha-card-background
+         at the dashboard level for fully custom surfaces. */
+      --ha-card-background: color-mix(in srgb, var(--card-background-color, #ffffff) 70%, transparent);
       -webkit-backdrop-filter: var(--ha-card-backdrop-filter, none);
       backdrop-filter: var(--ha-card-backdrop-filter, none);
       --ha-card-border-color: transparent;
@@ -613,15 +616,19 @@ export class RoomLightsCard extends LitElement {
       align-items: center;
       gap: 10px;
       padding: 12px 14px;
-      /* Background: Use a custom --ha-card-background-tile property defaulting
-         to transparent. We do not use the parent --ha-card-background directly
-         here because transparent/glassmorphic themes often style the card's
-         background property directly while leaving the --ha-card-background
-         variable set to an opaque dark color (to keep popups and dropdowns
-         legible). Using a custom variable allows tiles to be transparent
-         by default, while still allowing users to define a custom surface
-         (e.g. translucent white) specifically for the tiles in their theme. */
-      background: var(--ha-card-background-tile, transparent);
+      /* Background: Use a custom --ha-card-background-tile property
+         defaulting to a subtle frosted surface (55% of the theme's
+         card color blended with transparent — slightly more see-through
+         than the parent card to create visual hierarchy between the
+         card chrome and the tiles). We do not use the parent
+         --ha-card-background directly here because glassmorphic themes
+         often style the card's background property directly while
+         leaving the --ha-card-background variable set to a different
+         color (to keep popups and dropdowns legible). Using a custom
+         variable lets tiles follow their own surface and still allows
+         users to define a fully custom surface via
+         --ha-card-background-tile in their theme. */
+      background: var(--ha-card-background-tile, color-mix(in srgb, var(--card-background-color, #ffffff) 55%, transparent));
       border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.08));
       border-radius: 10px;
       cursor: pointer;
