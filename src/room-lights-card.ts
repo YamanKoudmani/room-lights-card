@@ -499,23 +499,28 @@ export class RoomLightsCard extends LitElement {
       box-sizing: border-box;
       max-width: 100%;
       overflow: hidden;
-      /* Theme-adaptive background that matches HA's built-in ha-card
-         chain. The previous --secondary-background-color fallback was
-         the bug behind the glassmorphism complaint: in those themes
-         that variable is set to a transparent rgba, so our card looked
-         like a hole in the layout. The backdrop-filter inheritance
-         is what makes the glassmorphism blur effect work — themes
-         opt in by setting --ha-card-backdrop-filter to e.g. blur(20px). */
+      /* Theme-adaptive background that mirrors HA's own ha-card.
+         We deliberately have NO hardcoded fallback color here:
+           • Glassmorphism themes set --ha-card-background to an
+             rgba (e.g. rgba(0,0,0,0.3)) and --ha-card-backdrop-filter
+             to e.g. blur(20px) — we inherit that and render glass.
+           • Standard themes set --card-background-color — we use that.
+           • If a theme sets neither, the card is fully transparent
+             and the dashboard background shows through (same as
+             HA's own ha-card in default themes). The earlier
+             #1f1f1f fallback forced an opaque dark panel on
+             every glassmorphism theme and looked hardcoded against
+             the rest of the layout — removing it is the fix. */
       background: var(
         --ha-card-background,
-        var(--card-background-color, #1f1f1f)
+        var(--card-background-color)
       );
       -webkit-backdrop-filter: var(--ha-card-backdrop-filter, none);
       backdrop-filter: var(--ha-card-backdrop-filter, none);
       border: 1px solid
         var(
           --ha-card-border-color,
-          var(--divider-color, rgba(0, 0, 0, 0.12))
+          var(--divider-color, transparent)
         );
     }
     .card-inner {
