@@ -37,13 +37,6 @@ export class RoomLightsCard extends LitElement {
 
   private _press: PressState | null = null;
 
-  // Dynamic sizing: we observe the ha-card's rendered height and tell
-  // HA about it via card-size-changed. This replaces the old constant
-  // formulas (`1 + rows` / `2 + rows`) that over- or under-allocated
-  // depending on view mode and theme.
-  private _resizeObserver?: ResizeObserver;
-  private _lastReportedHeight = 0;
-
   // Bound listeners. Click / pointerdown live on the tile and header
   // elements themselves (via Lit `@event` bindings) rather than on the
   // host — an event fired inside an `ha-icon`'s shadow root gets its
@@ -75,28 +68,36 @@ export class RoomLightsCard extends LitElement {
   }
 
   getCardSize(): number {
-    // Initial estimate used before the first render. The ResizeObserver
-    // (see _reportSize) refines this by measuring the actual rendered
-    // ha-card height and dispatching card-size-changed, so HA resizes
-    // the grid cell to fit the content exactly — no pixel math here,
-    // no edit-mode empty band, no view-mode cropping. The base row
-    // count accounts for the card chrome (header + padding + margin)
-    // that sits above the tile grid.
+    // Masonry view: HA queries this once when placing the card and
+    // allocates `size * 50px` of vertical space. The base accounts
+    // for the card chrome (header + padding + grid margin) above the
+    // tile grid; _computeRows() counts the tile rows themselves.
+    // Sections view ignores this and uses getGridOptions() instead.
     return this._baseRows() + this._computeRows();
   }
 
   getGridOptions(): {
-    rows: number;
-    min_rows: number;
-    max_rows: number;
+    rows: number | 'auto';
     columns: number;
     min_columns: number;
     max_columns: number;
   } {
+    // Sections view: `rows: 'auto'` tells HA's grid section to size
+    // the cell to fit our actual rendered height (its own
+    // .card { height: auto } kicks in; the .fit-rows class is only
+    // applied for numeric rows). This is the same approach
+    // hui-error-card uses for its content-driven size. It avoids the
+    // previous off-by-one clipping problem: the old static
+    // `_baseRows() + _computeRows()` was tuned for 56px rows without
+    // gaps, but HA's actual pitch in a grid section is 64px
+    // (56 row + 8 gap, per hui-grid-section CSS), and the chrome
+    // (header + padding + grid margin) is ~138px — both
+    // considerations pushed the old formula below the real content
+    // height, clipping the last tile row into the card below.
+    // getGridOptions() is re-evaluated on every render, so adding or
+    // removing tiles (or toggling compact) reflows the cell too.
     return {
-      rows: this._baseRows() + this._computeRows(),
-      min_rows: this._baseRows() + 1,
-      max_rows: 8,
+      rows: 'auto',
       columns: 12,
       min_columns: 6,
       max_columns: 12,
@@ -104,9 +105,10 @@ export class RoomLightsCard extends LitElement {
   }
 
   /**
-   * Chrome (header + padding + margin) above the tile grid, in HA
-   * grid rows. Compact mode is tighter, so 1 row less is enough.
-   * Used as the constant portion of getCardSize / getGridOptions.
+   * Chrome (header + padding + grid margin) above the tile grid, in
+   * masonry-view units (50px each). Sections view uses `rows: 'auto'`
+   * in getGridOptions() and doesn't need this constant. Compact mode
+   * is tighter, so 1 row less is enough.
    */
   private _baseRows(): number {
     return this._config?.compact ? 1 : 2;
@@ -164,55 +166,9 @@ export class RoomLightsCard extends LitElement {
   }
 
   disconnectedCallback(): void {
-    this._resizeObserver?.disconnect();
-    this._resizeObserver = undefined;
     this.removeEventListener('pointercancel', this._onPointerCancel);
     this._clearPress();
     super.disconnectedCallback();
-  }
-
-  protected firstUpdated(): void {
-    this._setupResizeObserver();
-  }
-
-  protected updated(): void {
-    // Report size after every render. ResizeObserver covers layout
-    // changes, but explicit reporting handles config-driven re-renders
-    // (compact toggle, entity add/remove) where the content height
-    // might shift before the observer fires. The early-return on
-    // unchanged height makes this cheap.
-    this._reportSize();
-  }
-
-  private _setupResizeObserver(): void {
-    if (this._resizeObserver) return;
-    const card = this.shadowRoot?.querySelector<HTMLElement>('ha-card');
-    if (!card) return;
-    this._resizeObserver = new ResizeObserver(() => this._reportSize());
-    this._resizeObserver.observe(card);
-  }
-
-  private _reportSize(): void {
-    const card = this.shadowRoot?.querySelector<HTMLElement>('ha-card');
-    if (!card) return;
-    const height = card.offsetHeight;
-    if (height === 0 || height === this._lastReportedHeight) return;
-    this._lastReportedHeight = height;
-    // HA's grid cell is 56px tall in sections view (per developer docs).
-    // Convert the actual rendered height to a row count, rounding up so
-    // we never under-allocate. HA's masonry view uses 50px per unit
-    // instead, but it still respects the same `size` value, so a
-    // ~6px/row over-allocation there is harmless (the card just sits
-    // in a slightly taller cell).
-    const rowHeight = 56;
-    const rows = Math.max(1, Math.ceil(height / rowHeight));
-    this.dispatchEvent(
-      new CustomEvent('card-size-changed', {
-        detail: { size: rows },
-        bubbles: true,
-        composed: true,
-      }),
-    );
   }
 
   protected render(): TemplateResult | typeof nothing {
@@ -487,8 +443,9 @@ export class RoomLightsCard extends LitElement {
   // ---------------------------------------------------------------------------
 
   /**
-   * Count grid rows for getCardSize / getGridOptions.
+   * Count grid rows for getCardSize (masonry view).
    * Columns 2 tiles stack two per row; columns 1 tiles take a whole row.
+   * Sections view uses `rows: 'auto'` and doesn't need this.
    */
   private _computeRows(): number {
     if (!this._config) return 0;
