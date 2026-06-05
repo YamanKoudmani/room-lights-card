@@ -1,7 +1,6 @@
 import { LitElement, html, css, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { HomeAssistant } from 'custom-card-helpers';
-import { fireEvent } from 'custom-card-helpers';
+import { fireEvent, type HomeAssistant } from 'custom-card-helpers';
 import type { RoomLightsCardConfig, LightEntityConfig } from './types';
 import { normalizeLightConfig } from './const';
 

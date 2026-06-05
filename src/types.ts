@@ -48,9 +48,6 @@ export interface LightTileInfo {
   isUnavailable: boolean;
 }
 
-/** Re-export for convenience */
-export type { HassEntity };
-
 /** Aggregate state of every light in the room */
 export interface RoomState {
   anyOn: boolean;

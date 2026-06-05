@@ -113,11 +113,6 @@ describe('brightnessPercent', () => {
     expect(brightnessPercent(light('on', { brightness: 0 }))).toBeNull();
   });
 
-  it('returns 0 for brightness 0 (treated as null when <=0)', () => {
-    // document current behaviour: <=0 returns null
-    expect(brightnessPercent(light('on', { brightness: 0 }))).toBeNull();
-  });
-
   it('rounds 127 to 50', () => {
     expect(brightnessPercent(light('on', { brightness: 127 }))).toBe(50);
   });

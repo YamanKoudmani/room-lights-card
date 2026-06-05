@@ -1,4 +1,4 @@
-import { LitElement, html, css, nothing, type TemplateResult } from 'lit';
+import { LitElement, html, css, nothing, unsafeCSS, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { HomeAssistant } from 'custom-card-helpers';
 import { fireEvent } from 'custom-card-helpers';
@@ -11,7 +11,6 @@ import {
   LONG_PRESS_MS,
   normalizeLightConfig,
 } from './const';
-import { unsafeCSS } from 'lit';
 import type { RoomLightsCardConfig, LightTileInfo, RoomState } from './types';
 import {
   aggregateRoomState,
@@ -422,7 +421,10 @@ export class RoomLightsCard extends LitElement {
     if (!this.hass) return;
     const domain = entityId.split('.')[0];
     if (domain !== 'light' && domain !== 'switch') return;
-    this.hass.callService(domain, 'toggle', { entity_id: entityId });
+    // Fire-and-forget: HA service calls don't need to be awaited for
+    // toggle UX, and ignoring the Promise keeps this synchronous from
+    // the caller's perspective.
+    void this.hass.callService(domain, 'toggle', { entity_id: entityId });
   }
 
   private _toggleAll(): void {
@@ -436,7 +438,7 @@ export class RoomLightsCard extends LitElement {
       const id = this._config.room_off;
       const domain = id.split('.')[0];
       if (domain !== 'light' && domain !== 'switch') return;
-      this.hass.callService(domain, 'toggle', { entity_id: id });
+      void this.hass.callService(domain, 'toggle', { entity_id: id });
       return;
     }
     const ids = this._config.entities.map((e) => e.entity).filter(Boolean);
@@ -452,7 +454,7 @@ export class RoomLightsCard extends LitElement {
       else byDomain.set(domain, [id]);
     }
     for (const [domain, list] of byDomain) {
-      this.hass.callService(domain, 'toggle', { entity_id: list });
+      void this.hass.callService(domain, 'toggle', { entity_id: list });
     }
   }
 
@@ -490,10 +492,8 @@ export class RoomLightsCard extends LitElement {
     ha-card {
       border-radius: 12px;
       /* Symmetric vertical padding so the last tile row has visual
-         breathing room from the card's bottom edge. Previously the
-         bottom was 0 and the tile's border-radius sat flush against
-         the ha-card's bottom edge, which looked cut off. The
-         getCardSize() formula (2 + rows) already leaves room for this
+         breathing room from the card's bottom edge. The getCardSize
+         formula (_baseRows() + _computeRows()) leaves room for this
          extra 12px inside the dashboard's grid cell. */
       padding: 12px 16px;
       box-sizing: border-box;
@@ -595,12 +595,15 @@ export class RoomLightsCard extends LitElement {
       align-items: center;
       gap: 10px;
       padding: 12px 14px;
-      /* Higher alpha fallback than 0.04 — in glassmorphism themes the
-         standard --secondary-background-color is often a very faint
-         rgba that disappears against the ha-card's blurred background,
-         making tiles look like empty slots. The 0.15 overlay keeps the
-         "elevated surface" feel without going opaque. */
-      background: var(--secondary-background-color, rgba(127, 127, 127, 0.15));
+      /* Background: Use a custom --ha-card-background-tile property defaulting
+         to transparent. We do not use the parent --ha-card-background directly
+         here because transparent/glassmorphic themes often style the card's
+         background property directly while leaving the --ha-card-background
+         variable set to an opaque dark color (to keep popups and dropdowns
+         legible). Using a custom variable allows tiles to be transparent
+         by default, while still allowing users to define a custom surface
+         (e.g. translucent white) specifically for the tiles in their theme. */
+      background: var(--ha-card-background-tile, transparent);
       border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.08));
       border-radius: 10px;
       cursor: pointer;
