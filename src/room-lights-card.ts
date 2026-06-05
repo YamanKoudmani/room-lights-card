@@ -228,6 +228,10 @@ export class RoomLightsCard extends LitElement {
       cfg.room_off,
     );
     const anyOn = aggregate.anyOn;
+    // If a custom icon is configured, always use it (the on/off visual
+    // distinction is still conveyed by the accent colour). Otherwise fall
+    // back to the smart group icons: mdi:lightbulb-group-off when all
+    // off, mdi:lightbulb-group when any light is on.
     const headerIcon =
       typeof cfg.icon === 'string' && cfg.icon.trim().length > 0
         ? cfg.icon.trim()
@@ -252,10 +256,8 @@ export class RoomLightsCard extends LitElement {
               class="header-icon ${anyOn ? 'on' : 'off'}"
               icon=${headerIcon}
             ></ha-icon>
-            <div class="header-text">
-              <div class="header-name">${cfg.name}</div>
-              <div class="header-status">${headerStatus}</div>
-            </div>
+            <div class="header-name">${cfg.name}</div>
+            <div class="header-status">${headerStatus}</div>
           </div>
 
           <div class="grid">
@@ -551,14 +553,17 @@ export class RoomLightsCard extends LitElement {
     /* Header ---------------------------------------------------------------- */
     .header {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 14px;
-      padding: 8px 6px;
+      justify-content: center;
+      gap: 4px;
+      padding: 12px 6px 8px;
       border-radius: 10px;
       cursor: pointer;
       user-select: none;
       -webkit-user-select: none;
       transition: background-color 0.15s ease;
+      text-align: center;
     }
     .header:hover {
       background-color: var(--divider-color, rgba(0, 0, 0, 0.05));
@@ -568,21 +573,15 @@ export class RoomLightsCard extends LitElement {
       outline-offset: 2px;
     }
     .header-icon {
-      --mdc-icon-size: 28px;
+      --mdc-icon-size: 36px;
       flex-shrink: 0;
+      margin-bottom: 2px;
     }
     .header-icon.on {
       color: var(--accent-on, var(--_room-lights-accent, #f5c842));
     }
     .header-icon.off {
       color: var(--secondary-text-color, #9e9e9e);
-    }
-    .header-text {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
     }
     .header-name {
       font-size: 15px;
@@ -592,6 +591,7 @@ export class RoomLightsCard extends LitElement {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      max-width: 100%;
     }
     .header-status {
       font-size: 13px;
@@ -714,7 +714,11 @@ export class RoomLightsCard extends LitElement {
       border-radius: 8px;
     }
     ha-card.compact .header {
-      padding: 4px 4px;
+      padding: 6px 4px 4px;
+      gap: 2px;
+    }
+    ha-card.compact .header-icon {
+      --mdc-icon-size: 28px;
     }
     ha-card.compact .grid {
       gap: 0;

@@ -238,6 +238,9 @@ export class RoomLightsCardEditor extends LitElement {
   };
 
   private _computeRootHelper = (schema: HaFormSchemaItem): string => {
+    if (schema.name === 'icon') {
+      return 'When set, this icon always shows in the header. When left empty, the header automatically shows mdi:lightbulb-group-off (all off) or mdi:lightbulb-group (any on).';
+    }
     if (schema.name === 'room_off') {
       return 'Header tap toggles this entity instead of the tiles. Use a HA light group (e.g. group.living_room_lights) to represent the whole room.';
     }

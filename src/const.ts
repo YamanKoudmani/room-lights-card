@@ -1,15 +1,18 @@
 import type { LightEntityConfig } from './types';
 
-export const CARD_VERSION = '1.0.23';
+export const CARD_VERSION = '1.0.24';
 export const CARD_TAG = 'room-lights-card';
 export const EDITOR_TAG = 'room-lights-card-editor';
 
 /** Accent color for on-state icons + label (warm white) */
 export const ACCENT_ON = '#f5c842';
 
-/** Header icons */
-export const ICON_OFF_ALL = 'mdi:lightbulb-off';
-export const ICON_ANY_ON = 'mdi:lightbulb';
+/** Header icons — smart defaults when no custom icon is configured.
+ *  mdi:lightbulb-group-off when all lights are off,
+ *  mdi:lightbulb-group   when any light is on.
+ *  A custom `icon` in the card config overrides both of these. */
+export const ICON_OFF_ALL = 'mdi:lightbulb-group-off';
+export const ICON_ANY_ON  = 'mdi:lightbulb-group';
 
 /** Tile fallback icon (used only when stateObj is unavailable) */
 export const FALLBACK_TILE_ICON = 'mdi:lightbulb';
