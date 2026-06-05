@@ -499,23 +499,31 @@ export class RoomLightsCard extends LitElement {
       box-sizing: border-box;
       max-width: 100%;
       overflow: hidden;
-      /* Background policy: prefer the glassmorphism variable
-         (--ha-card-background) and otherwise default to transparent.
-         We deliberately do NOT include --card-background-color in
-         the chain — that variable is a solid color in many dark
-         themes and would force this card into an opaque panel that
-         the dashboard background can't show through, which is the
-         bug v1.0.19 fixes. Themes that want a solid surface for this
-         card can either:
-           • set --ha-card-background to their solid color, or
-           • wrap the card in a vertical / grid stack with their own
-             background. The border follows the same pattern: a
-             theme-supplied --ha-card-border-color wins, else no
-             visible border. */
-      background: var(--ha-card-background, transparent);
+      /* Background: set CSS variables on the ha-card element rather
+         than setting background/border directly. ha-card is a Lit
+         element with its own shadow DOM that has:
+           :host {
+             background: var(--ha-card-background, var(--card-background-color));
+             border-color: var(--ha-card-border-color, var(--divider-color));
+           }
+         If we set background directly on the ha-card element from
+         our (outer) shadow DOM, ha-card's own (inner) :host rule
+         overrides it — the more specific shadow tree wins.
+
+         CSS custom properties DO cross the shadow boundary, so
+         setting --ha-card-background: transparent here makes
+         ha-card's :host evaluate var(--ha-card-background, ...)
+         to transparent. The earlier #1f1f1f fallback (v1.0.15–17)
+         and the --card-background-color chain (v1.0.18) both
+         failed because they either hardcoded an opaque color
+         or consulted a global variable that dark themes set
+         to a solid dark color. Now transparent is the definitive
+         default; users who want a surface can set
+         --ha-card-background at the dashboard level. */
+      --ha-card-background: transparent;
       -webkit-backdrop-filter: var(--ha-card-backdrop-filter, none);
       backdrop-filter: var(--ha-card-backdrop-filter, none);
-      border: 1px solid var(--ha-card-border-color, transparent);
+      --ha-card-border-color: transparent;
     }
     .card-inner {
       display: flex;
